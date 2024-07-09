@@ -6,7 +6,7 @@ TARGET = webserv
 SRC = sources/core/main.cpp\
 	sources/core/Server.cpp\
 	sources/http/HttpRequest.cpp\
-	sources/utils/parsing.cpp
+	sources/configuration/Config.cpp
 
 INC = sources/core/
 

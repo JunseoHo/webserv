@@ -1,7 +1,13 @@
-#include "Utils.hpp"
+#include "Config.hpp"
+Config::Config() { /* DO NOTHING */ }
+Config::~Config() { /* DO NOTHING */ }
+Config::Config(Config const &src) { /* DO NOTHING */ }
+Config &Config::operator=(Config const &rhs) { /* DO NOTHING */ }
 
-bool readConfigFile(std::list<int> &ports) {
-	std::ifstream file(CONFIG);
+Config::Config(char *conf) { readConfigFile(conf); }
+
+bool Config::readConfigFile(char *filename) {
+	std::ifstream file(filename);
 	if (!file.is_open()) {
 		std::cerr << "Failed to open config file" << std::endl;
 		return false;
@@ -15,12 +21,9 @@ bool readConfigFile(std::list<int> &ports) {
         if (line.find("listen:") == 0) {
             size_t colonPos = line.find(':');
             if (colonPos != std::string::npos) {
-                // 포트 번호 추출
                 std::string portStr = line.substr(colonPos + 1);
                 portStr.erase(0, portStr.find_first_not_of(" \t"));
                 portStr.erase(portStr.find_last_not_of(" \t") + 1);
-                
-                // 정수형 포트 번호로 변환하여 저장
                 int port = std::atoi(portStr.c_str());
                 ports.push_back(port);
             }
@@ -29,3 +32,5 @@ bool readConfigFile(std::list<int> &ports) {
     file.close();
     return true;
 }
+
+std::list<int> Config::getPorts() const { return ports; }

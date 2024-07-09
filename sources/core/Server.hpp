@@ -17,32 +17,29 @@
 # include <fcntl.h>
 # include "../http/HttpRequest.hpp"
 # include "../http/HttpResponse.hpp"
+# include "../configuration/Config.hpp"
 
 class Server {
     public:
-        Server(const std::list<int>& ports, const std::string& resourcesPath);
-        Server(const Server& obj);
+        Server(const Config &config, const std::string& resourcesPath);
+        void Start();
         ~Server();
 
-        Server& operator= (const Server& rhs);
-
-        void Start();
-
     private:
+        std::list<int> _ports;
         Server();
+        Server(const Server& obj);
+        Server& operator= (const Server& rhs);
 
         void setNonBlocking(int fd);
         void setupSockets();
         void eventLoop();
         void handleEvent(int clientSocketFd);
-
-        std::list<int> _ports;
+    
         std::string _resourcesPath;
         std::vector<pollfd> _pollFds;
         std::vector<int> _serverSocketFds;
         static const int _backLog;
 };
-
-bool readConfigFile(std::list<int> &ports);
 
 #endif
