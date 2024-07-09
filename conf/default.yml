@@ -1,6 +1,3 @@
-# Configuration file for a web server
-# Inspired by NGINX server configuration
-
 server:
   listen: 80
   server_name: example.com

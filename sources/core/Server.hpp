@@ -2,7 +2,6 @@
 # define SERVER_HPP
 
 # define BUFFER_SIZE 1024
-
 # include <list>
 # include <string>
 # include <vector>
@@ -43,5 +42,7 @@ class Server {
         std::vector<int> _serverSocketFds;
         static const int _backLog;
 };
+
+bool readConfigFile(std::list<int> &ports);
 
 #endif
