@@ -5,7 +5,6 @@
 
 const int PORT = 3000;
 const int BUFFER_SIZE = 1024;
-const int BACK_LOG = 10;
 
 
 int	main(void)
@@ -26,7 +25,7 @@ int	main(void)
 	// sockeaddr_in은 C, C++에서 주소를 표현할 때 사용하는 구조체이다.
 	sockaddr_in serverAddr, clientAddr;
 	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = PORT;
+	serverAddr.sin_port = htons(PORT);
 	serverAddr.sin_addr.s_addr = INADDR_ANY;
 	socklen_t clientAddrLen = sizeof(clientAddr);
 

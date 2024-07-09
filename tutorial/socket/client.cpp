@@ -25,8 +25,8 @@ int	main(void)
 	// 주소 생성
 	sockaddr_in addr;
 	addr.sin_family = AF_INET;
-	addr.sin_port = PORT;
 	addr.sin_addr.s_addr = INADDR_ANY;
+	addr.sin_port = htons(PORT);
 
 	// 서버 소켓에 연결 요청
 	if (connect(clientSocket, (struct sockaddr*)&addr, sizeof(addr)) < 0)

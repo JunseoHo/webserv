@@ -42,7 +42,6 @@ int main(void)
 	std::cout << "Polling... You have to input any string within 3 seconds!" << std::endl;
 
 	int result = poll(&io_event_monitor, 1, TIMEOUT);
-
 	if (result == -1)
 	{
 		std::cerr << "Poll Failed: " << strerror(errno) << std::endl;
