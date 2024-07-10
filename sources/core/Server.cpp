@@ -1,34 +1,13 @@
 #include "Server.hpp"
-
 const int Server::_backLog = 10;
+Server::Server(const Server& obj) { /* DO NOTHING */ }
+Server::Server() { /* DO NOTHING */ }
+Server::~Server() { /* DO NOTHING */ }
+Server& Server::operator= (const Server& rhs) { /* DO NOTHING */ }
 
-Server::Server(const std::list<int>& ports, const std::string& resourcesPath)
-    : _ports(ports), _resourcesPath(resourcesPath) {
-    _pollFds.resize(_ports.size());
-}
-
-Server::Server(const Server& obj)
-    : _ports(obj._ports), _resourcesPath(obj._resourcesPath), _pollFds(obj._pollFds) {
-	/* DO NOTHING */
-}
-
-Server::Server()
-    : _ports(), _resourcesPath() {
-	/* DO NOTHING */
-}
-
-Server::~Server() {
-	/* DO NOTHING */
-}
-
-Server& Server::operator= (const Server& rhs) {
-	if (this != &rhs)
-	{
-		_ports = rhs._ports;
-	    _resourcesPath = rhs._resourcesPath;
-	    _pollFds = rhs._pollFds;
-	}
-    return *this;
+Server::Server(const Config &config, const std::string& resourcesPath)
+    : _ports(config.getPorts()), _resourcesPath(resourcesPath) {
+    _pollFds.resize(config.getPorts().size());
 }
 
 std::string readFileToString(const std::string& filename) {
@@ -46,7 +25,6 @@ bool endsWith(const std::string& str, const std::string& suffix) {
     if (str.length() < suffix.length()) return false;
     return str.substr(str.length() - suffix.length()) == suffix;
 }
-
 
 void Server::Start() {
     setupSockets();
