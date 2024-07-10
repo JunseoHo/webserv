@@ -1,5 +1,9 @@
 #ifndef SERVER_HPP
 # define SERVER_HPP
+
+# include <iostream>
+# include <fstream>
+# include <sstream>
 # include <string>
 # include <list>
 # include "../http/HttpRequest.hpp"
@@ -29,7 +33,6 @@ class Config
 		Config(std::string& configFilePath);
 		~Config();
 
-		Config&	operator=(const Config& rhs);
 
 		Server& selectServer(HttpRequest& httpRequest) const;
 		void	print(void) const;
@@ -42,6 +45,7 @@ class Config
 	private:
 		Config();
 		Config(const Config& other);
+		Config&	operator=(const Config& rhs);
 
 		std::list<Server> mServers;
 };
