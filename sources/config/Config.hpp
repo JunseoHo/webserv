@@ -31,7 +31,8 @@ class Config
 
 		Config&	operator=(const Config& rhs);
 
-		Server& selectServer(HttpRequest& httpRequest);
+		Server& selectServer(HttpRequest& httpRequest) const;
+		void	print(void) const;
 
 		class InvalidConfigFormatException : public std::exception
 		{
