@@ -1,5 +1,5 @@
-#ifndef SERVER_HPP
-# define SERVER_HPP
+#ifndef CONFIG_HPP
+# define CONFIG_HPP
 
 # include <iostream>
 # include <fstream>
@@ -7,6 +7,14 @@
 # include <string>
 # include <list>
 # include "../http/HttpRequest.hpp"
+
+struct Route
+{
+	std::string	location;
+	int			acceptedHttpMethods;
+	bool		autoIndex;
+	std::string index;
+};
 
 struct Server
 {
@@ -17,14 +25,6 @@ struct Server
 	std::string				root;
 	std::list<Route>		routes;
 	std::string errorPage;
-};
-
-struct Route
-{
-	std::string	location;
-	int			acceptedHttpMethods;
-	bool		autoIndex;
-	std::string index;
 };
 
 class Config
@@ -41,6 +41,8 @@ class Config
 		{
 			virtual const char* what() const throw();
 		};
+
+		std::list<int> getPorts() const;
 
 	private:
 		Config();

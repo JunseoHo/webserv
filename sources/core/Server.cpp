@@ -1,11 +1,11 @@
 #include "Server.hpp"
-const int Server::_backLog = 10;
-Server::Server(const Server& obj) { /* DO NOTHING */ }
-Server::Server() { /* DO NOTHING */ }
-Server::~Server() { /* DO NOTHING */ }
-Server& Server::operator= (const Server& rhs) { /* DO NOTHING */ }
+const int Service::_backLog = 10;
+Service::Service(const Service& obj) { /* DO NOTHING */ }
+Service::Service() { /* DO NOTHING */ }
+Service::~Service() { /* DO NOTHING */ }
+Service& Service::operator= (const Service& rhs) { /* DO NOTHING */ }
 
-Server::Server(const Config &config, const std::string& resourcesPath)
+Service::Service(const Config &config, const std::string& resourcesPath)
     : _ports(config.getPorts()), _resourcesPath(resourcesPath) {
     _pollFds.resize(config.getPorts().size());
 }
@@ -26,17 +26,17 @@ bool endsWith(const std::string& str, const std::string& suffix) {
     return str.substr(str.length() - suffix.length()) == suffix;
 }
 
-void Server::Start() {
+void Service::Start() {
     setupSockets();
     eventLoop();
 }
 
-void Server::setNonBlocking(int fd) {
+void Service::setNonBlocking(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
-void Server::setupSockets() {
+void Service::setupSockets() {
     int index = 0;
     for (std::list<int>::iterator it = _ports.begin(); it != _ports.end(); ++it) {
         int port = *it;
@@ -62,7 +62,7 @@ void Server::setupSockets() {
     }
 }
 
-void Server::eventLoop() {
+void Service::eventLoop() {
     while (true) {
         std::cout << "Polling..." << std::endl;
         poll(_pollFds.data(), _pollFds.size(), -1);
@@ -88,7 +88,7 @@ void Server::eventLoop() {
     }
 }
 
-void Server::handleEvent(int clientSocketFd) {
+void Service::handleEvent(int clientSocketFd) {
     char buffer[BUFFER_SIZE];
     int size = recv(clientSocketFd, buffer, BUFFER_SIZE - 1, 0);	// 클라이언트 소켓으로부터 Http 리퀘스트 내용 읽기
     buffer[size] = '\0';

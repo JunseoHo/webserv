@@ -17,19 +17,19 @@
 # include <fcntl.h>
 # include "../http/HttpRequest.hpp"
 # include "../http/HttpResponse.hpp"
-# include "../configuration/Config.hpp"
+# include "../config/Config.hpp"
 
-class Server {
+class Service {
     public:
-        Server(const Config &config, const std::string& resourcesPath);
+        Service(const Config &config, const std::string& resourcesPath);
         void Start();
-        ~Server();
+        ~Service();
 
     private:
         std::list<int> _ports;
-        Server();
-        Server(const Server& obj);
-        Server& operator= (const Server& rhs);
+        Service();
+        Service(const Service& obj);
+        Service& operator= (const Service& rhs);
 
         void setNonBlocking(int fd);
         void setupSockets();
