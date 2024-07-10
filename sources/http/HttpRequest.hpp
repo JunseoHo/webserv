@@ -4,9 +4,9 @@
 
 enum EHttpMethod
 {
-	GET,
-	POST,
-	DELETE
+	GET = 1 << 0,
+	POST = 1 << 1,
+	DELETE = 1 << 2
 };
 
 class HttpRequest : public Http
