@@ -16,6 +16,7 @@ struct Server
 	int						clientMaxBodySize;
 	std::string				root;
 	std::list<Route>		routes;
+	std::string errorPage;
 };
 
 struct Route
@@ -24,7 +25,6 @@ struct Route
 	int			acceptedHttpMethods;
 	bool		autoIndex;
 	std::string index;
-	std::string errorPage;
 };
 
 class Config
