@@ -1,6 +1,7 @@
 #ifndef CONFIG_HPP
 # define CONFIG_HPP
 
+# 
 # include <iostream>
 # include <fstream>
 # include <sstream>
@@ -18,6 +19,7 @@ struct Route
 
 struct Server
 {
+	const int on = ON;
 	std::string				host;
 	int						port;
 	std::list<std::string> 	names;
@@ -30,8 +32,9 @@ struct Server
 class Config
 {
 	public:
-		Config(std::string& configFilePath);
 		Config();
+		Config(std::string& configFilePath);
+		Config&	operator=(const Config& rhs);
 		Config(const Config& other);
 		~Config();
 
@@ -47,8 +50,6 @@ class Config
 		std::list<int> getPorts() const;
 
 	private:
-		Config&	operator=(const Config& rhs);
-
 		std::list<Server> mServers;
 };
 

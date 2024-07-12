@@ -1,12 +1,24 @@
-#include "Server.hpp"
+#include "Service.hpp"
 const int Service::_backLog = 10;
-Service::Service(const Service& obj) { /* DO NOTHING */ }
 Service::Service() { /* DO NOTHING */ }
 Service::~Service() { /* DO NOTHING */ }
-Service& Service::operator= (const Service& rhs) { /* DO NOTHING */ }
+
+Service::Service(const Service& obj) { 
+    if (this != &obj)
+        *this = obj;
+}
+Service& Service::operator= (const Service& rhs) {
+    if (this != &rhs) {
+        _resourcesPath = rhs._resourcesPath;
+        config = rhs.config;
+        _pollFds = rhs._pollFds;
+        _serverSocketFds = rhs._serverSocketFds;
+    }
+    return *this;
+}
 
 Service::Service(const Config &config, const std::string& resourcesPath)
-    : _ports(config.getPorts()), _resourcesPath(resourcesPath), config(config) {
+    : _resourcesPath(resourcesPath), config(config) {
     _pollFds.resize(config.getPorts().size());
 }
 
@@ -37,8 +49,9 @@ void Service::setNonBlocking(int fd) {
 }
 
 void Service::setupSockets() {
+    std::list<int> ports = config.getPorts();
     int index = 0;
-    for (std::list<int>::iterator it = _ports.begin(); it != _ports.end(); ++it) {
+    for (std::list<int>::iterator it = ports.begin(); it != ports.end(); ++it) {
         int port = *it;
         int serverSocketFd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -100,8 +113,6 @@ void Service::handleEvent(int clientSocketFd) {
     HttpRequest httpRequest;
     httpRequest.parse(buffer);
     Server server = config.selectServer(httpRequest);
-
-    std::cout << server.host << "@:@" << server.port << std::endl;
 
     std::string response = "";
     if (httpRequest.method == GET) {

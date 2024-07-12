@@ -1,5 +1,5 @@
-#ifndef SERVER_HPP
-# define SERVER_HPP
+#ifndef SERVICE_HPP
+# define SERVICE_HPP
 
 # define BUFFER_SIZE 1024
 # include <list>
@@ -24,10 +24,9 @@ class Service {
         Service(const Config &config, const std::string& resourcesPath);
         void Start();
         ~Service();
+        Config config;
 
     private:
-        std::list<int> _ports;
-        Config config;
         Service();
         Service(const Service& obj);
         Service& operator= (const Service& rhs);
