@@ -1,7 +1,8 @@
 #ifndef CONFIG_HPP
 # define CONFIG_HPP
 
-# 
+# define ON 0
+# define OFF 1
 # include <iostream>
 # include <fstream>
 # include <sstream>

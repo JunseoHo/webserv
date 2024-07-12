@@ -2,7 +2,7 @@ server:
   listen: 80
   server_name: example.com
   host: 127.0.0.1
-  error_page: 4xx.html
+  error_page: /error.html
   index: index1.html
   client_max_body_size: 1024
   root: /var/www/html
