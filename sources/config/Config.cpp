@@ -1,5 +1,7 @@
 #include "Config.hpp"
 
+Server::Server() : status(OFF) {}
+
 Config::Config() { /* DO NOTHING */ }
 Config::~Config() { /* DO NOTHING */ }
 
@@ -34,6 +36,7 @@ Config::Config(std::string &configFilePath)
 		{
 			if (inServerBlock)
 			{
+				currentServer.status = ON;
 				mServers.push_back(currentServer);
 				currentServer = Server();
 			}
@@ -97,8 +100,10 @@ Config::Config(std::string &configFilePath)
 			}
 		}
 	}
-	if (inServerBlock)
+	if (inServerBlock) {
+		currentServer.status = ON;
 		mServers.push_back(currentServer);
+	}
 	file.close();
 }
 
@@ -145,15 +150,8 @@ std::list<int> Config::getPorts() const {
 }
 
 Server& Config::selectServer(HttpRequest& httpRequest) const {
-	try
-	{
-		for (std::list<Server>::const_iterator it = mServers.begin(); it != mServers.end(); ++it)
-			if (it->host == httpRequest.getValue("Host"))
-				return const_cast<Server&>(*it);
-		throw InvalidConfigFormatException();
-	}
-	catch(const std::exception& e)
-	{
-		std::cerr << e.what() << '\n';
-	}
+	for (std::list<Server>::const_iterator it = mServers.begin(); it != mServers.end(); ++it)
+		if (it->host == httpRequest.getValue("Host"))
+			return const_cast<Server &>(*it);
+	return const_cast<Server &>(*mServers.begin());
 }

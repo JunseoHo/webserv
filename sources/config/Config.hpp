@@ -20,7 +20,8 @@ struct Route
 
 struct Server
 {
-	const int on = ON;
+	Server();
+	int 					status;
 	std::string				host;
 	int						port;
 	std::list<std::string> 	names;

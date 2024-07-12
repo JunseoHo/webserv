@@ -1,6 +1,6 @@
 server:
   listen: 80
-  server_name: example.com
+  server_name: example1.com
   host: 127.0.0.1
   error_page: /error.html
   index: index1.html
