@@ -2,7 +2,15 @@
 
 Config::Config() { /* DO NOTHING */ }
 Config::~Config() { /* DO NOTHING */ }
-Config::Config(const Config& other) { /* DO NOTHING */ }
+
+Config &Config::operator=(const Config& rhs) {
+	mServers = rhs.mServers;
+	return *this;
+}
+
+Config::Config(const Config& other) {
+	*this = other;
+ }
 
 Config::Config(std::string &configFilePath)
 {
@@ -53,6 +61,8 @@ Config::Config(std::string &configFilePath)
 				while (iss >> name)
 					currentServer.names.push_back(name);
 			}
+			else if (key == "host:")
+				iss >> currentServer.host;
 			else if (key == "client_max_body_size:")
 				iss >> currentServer.clientMaxBodySize;
 			else if (key == "root:")
@@ -99,11 +109,12 @@ void Config::print(void) const
 {
 	for (std::list<Server>::const_iterator it = mServers.begin(); it != mServers.end(); ++it)
 	{
-		std::cout << "Server: " << it->host << ":" << it->port << std::endl;
+		std::cout << "Server: " << it->port << std::endl;
 		std::cout << "Names: ";
 		for (std::list<std::string>::const_iterator it2 = it->names.begin(); it2 != it->names.end(); ++it2)
 			std::cout << *it2 << " ";
 		std::cout << std::endl;
+		std::cout << "Host: " << it->host << std::endl;
 		std::cout << "Client max body size: " << it->clientMaxBodySize << std::endl;
 		std::cout << "Root: " << it->root << std::endl;
 		std::cout << "Error page: " << it->errorPage << std::endl;
@@ -129,4 +140,13 @@ std::list<int> Config::getPorts() const {
 	for (std::list<Server>::const_iterator it = mServers.begin(); it != mServers.end(); ++it)
 		ports.push_back(it->port);
 	return ports;
+}
+
+Server& Config::selectServer(HttpRequest& httpRequest) const {
+	for (std::list<Server>::const_iterator it = mServers.begin(); it != mServers.end(); ++it) {
+		if (it->host == httpRequest.getValue("Host")) {
+			return const_cast<Server&>(*it);
+		}
+	}
+	return const_cast<Server&>(*mServers.begin()); // error: Not Found.
 }

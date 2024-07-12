@@ -6,7 +6,7 @@ Service::~Service() { /* DO NOTHING */ }
 Service& Service::operator= (const Service& rhs) { /* DO NOTHING */ }
 
 Service::Service(const Config &config, const std::string& resourcesPath)
-    : _ports(config.getPorts()), _resourcesPath(resourcesPath) {
+    : _ports(config.getPorts()), _resourcesPath(resourcesPath), config(config) {
     _pollFds.resize(config.getPorts().size());
 }
 
@@ -99,6 +99,9 @@ void Service::handleEvent(int clientSocketFd) {
 
     HttpRequest httpRequest;
     httpRequest.parse(buffer);
+    Server server = config.selectServer(httpRequest);
+
+    std::cout << server.host << "@:@" << server.port << std::endl;
 
     std::string response = "";
     if (httpRequest.method == GET) {
