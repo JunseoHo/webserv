@@ -31,6 +31,8 @@ class Config
 {
 	public:
 		Config(std::string& configFilePath);
+		Config();
+		Config(const Config& other);
 		~Config();
 
 
@@ -45,8 +47,6 @@ class Config
 		std::list<int> getPorts() const;
 
 	private:
-		Config();
-		Config(const Config& other);
 		Config&	operator=(const Config& rhs);
 
 		std::list<Server> mServers;

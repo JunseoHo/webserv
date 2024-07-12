@@ -6,25 +6,25 @@ Service::~Service() { /* DO NOTHING */ }
 Service& Service::operator= (const Service& rhs) { /* DO NOTHING */ }
 
 Service::Service(const Config &config, const std::string& resourcesPath)
-    : _ports(config.getPorts()), _resourcesPath(resourcesPath) {
+    : _ports(config.getPorts()), _resourcesPath(resourcesPath), config(config) {
     _pollFds.resize(config.getPorts().size());
 }
 
-std::string readFileToString(const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << filename << std::endl;
-        return "";
-    }
-    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
-    return content;
-}
+// std::string readFileToString(const std::string& filename) {
+//     std::ifstream file(filename);
+//     if (!file.is_open()) {
+//         std::cerr << "Failed to open file: " << filename << std::endl;
+//         return "";
+//     }
+//     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+//     file.close();
+//     return content;
+// }
 
-bool endsWith(const std::string& str, const std::string& suffix) {
-    if (str.length() < suffix.length()) return false;
-    return str.substr(str.length() - suffix.length()) == suffix;
-}
+// bool endsWith(const std::string& str, const std::string& suffix) {
+//     if (str.length() < suffix.length()) return false;
+//     return str.substr(str.length() - suffix.length()) == suffix;
+// }
 
 void Service::Start() {
     setupSockets();
@@ -99,35 +99,43 @@ void Service::handleEvent(int clientSocketFd) {
 
     HttpRequest httpRequest;
     httpRequest.parse(buffer);
+    Server server = config.selectServer(httpRequest);
 
-    std::string response = "";
-    if (httpRequest.method == GET) {
-        std::string responseBody = readFileToString(_resourcesPath + httpRequest.target);
-        if (endsWith(httpRequest.target, ".svg"))
-        {
-            response = "HTTP/1.1 200 OK\r\nContent-Type: image/svg+xml\r\nContent-Length: "
-                + std::to_string(responseBody.length()) + "\r\n\r\n"
-                + responseBody;
-        }
-        else
-        {
-            response = "HTTP/1.1 200 OK\r\nContent-Length: "
-                + std::to_string(responseBody.length()) + "\r\n\r\n"
-                + responseBody;
-        }
-        send(clientSocketFd, response.c_str(), response.size(), 0);
-    } else if (httpRequest.method == POST) {
-        std::string requestBody = httpRequest.body;
-        std::string filePath = "post" + httpRequest.target;
-        std::ofstream outfile(filePath);
-        if (outfile.is_open()) {
-            outfile << requestBody;
-            outfile.close();
-            response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
-        } else {
-            response = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n";
-        }
-    }
+    HttpResponse httpResponse;
+    httpResponse.configParse(server, httpRequest);
+    std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
+    std::cout << httpResponse.response;
+    std::cout << std::endl << "=============================" << std::endl << std::endl;
+    send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+
+    // std::string response = "";
+    // if (httpRequest.method == GET) {
+    //     std::string responseBody = readFileToString(_resourcesPath + httpRequest.target);
+    //     if (endsWith(httpRequest.target, ".svg"))
+    //     {
+    //         response = "HTTP/1.1 200 OK\r\nContent-Type: image/svg+xml\r\nContent-Length: "
+    //             + std::to_string(responseBody.length()) + "\r\n\r\n"
+    //             + responseBody;
+    //     }
+    //     else
+    //     {
+    //         response = "HTTP/1.1 200 OK\r\nContent-Length: "
+    //             + std::to_string(responseBody.length()) + "\r\n\r\n"
+    //             + responseBody;
+    //     }
+    //     send(clientSocketFd, response.c_str(), response.size(), 0);
+    // } else if (httpRequest.method == POST) {
+    //     std::string requestBody = httpRequest.body;
+    //     std::string filePath = "post" + httpRequest.target;
+    //     std::ofstream outfile(filePath);
+    //     if (outfile.is_open()) {
+    //         outfile << requestBody;
+    //         outfile.close();
+    //         response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
+    //     } else {
+    //         response = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n";
+    //     }
+    // }
 }
 
 

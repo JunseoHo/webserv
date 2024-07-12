@@ -1,12 +1,13 @@
 server:
   listen: 80
   server_name: example.com
-  client_error_page: 4xx.html
-  server_error_page: 5xx.html
+  host: 127.0.0.1
+  error_page: /error.html
+  index: index1.html
   client_max_body_size: 1024
   root: /var/www/html
   location: /
-    allow_methods: GET, POST, DELETE
+    allow_methods: GET POST DELETE
     root: /var/www/html
     autoindex: on
   location: /redirect
@@ -17,12 +18,13 @@ server:
 server:
   listen: 8080
   server_name: example2.com
-  client_error_page: 4xx.html
-  server_error_page: 5xx.html
+  host: 127.0.0.2
+  error_page: 4xx.html
+  index: index2.html
   client_max_body_size: 1024
   root: /var/www/html
   location: /
-    allow_methods: GET, POST, DELETE
+    allow_methods: GET POST DELETE
     root: /var/www/html
     autoindex: on
   location: /redirect

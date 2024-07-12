@@ -23,6 +23,7 @@ class HttpRequest : public Http
 		std::string version;
 
 		virtual bool parse(const std::string& s);
+		std::string getValue(const std::string& key);
 };
 
 #endif

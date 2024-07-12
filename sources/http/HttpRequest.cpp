@@ -60,3 +60,7 @@ bool HttpRequest::parse(const std::string& s) {
 
     return true;
 }
+
+std::string HttpRequest::getValue(const std::string& key) {
+    return this->headers[key];
+}

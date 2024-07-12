@@ -27,6 +27,7 @@ class Service {
 
     private:
         std::list<int> _ports;
+        Config config;
         Service();
         Service(const Service& obj);
         Service& operator= (const Service& rhs);

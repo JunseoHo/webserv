@@ -7,7 +7,10 @@ class Http
 {
 	public:
 		Http() {};
-		Http(const Http& obj) {};
+		Http(const Http& obj) {
+			this->headers = obj.headers;
+			this->body = obj.body;
+		};
 		~Http() {};
 
 		Http& operator= (Http& rhs) { return *this; };
