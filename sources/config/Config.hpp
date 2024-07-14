@@ -1,19 +1,14 @@
-#ifndef SERVER_HPP
-# define SERVER_HPP
+#ifndef CONFIG_HPP
+# define CONFIG_HPP
+
+# define ON 0
+# define OFF 1
+# include <iostream>
+# include <fstream>
+# include <sstream>
 # include <string>
 # include <list>
 # include "../http/HttpRequest.hpp"
-
-struct Server
-{
-	std::string				host;
-	int						port;
-	std::list<std::string> 	names;
-	int						clientMaxBodySize;
-	std::string				root;
-	std::list<Route>		routes;
-	std::string errorPage;
-};
 
 struct Route
 {
@@ -23,13 +18,28 @@ struct Route
 	std::string index;
 };
 
+struct Server
+{
+	Server();
+	int 					status;
+	std::string				host;
+	int						port;
+	std::list<std::string> 	names;
+	int						clientMaxBodySize;
+	std::string				root;
+	std::list<Route>		routes;
+	std::string errorPage;
+};
+
 class Config
 {
 	public:
+		Config();
 		Config(std::string& configFilePath);
+		Config&	operator=(const Config& rhs);
+		Config(const Config& other);
 		~Config();
 
-		Config&	operator=(const Config& rhs);
 
 		Server& selectServer(HttpRequest& httpRequest) const;
 		void	print(void) const;
@@ -39,10 +49,9 @@ class Config
 			virtual const char* what() const throw();
 		};
 
-	private:
-		Config();
-		Config(const Config& other);
+		std::list<int> getPorts() const;
 
+	private:
 		std::list<Server> mServers;
 };
 

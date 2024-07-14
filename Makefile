@@ -4,9 +4,10 @@ CXXFLAGS = -std=c++98
 TARGET = webserv
 
 SRC = sources/core/main.cpp\
-	sources/core/Server.cpp\
+	sources/core/Service.cpp\
 	sources/http/HttpRequest.cpp\
-	sources/configuration/Config.cpp
+	sources/config/Config.cpp\
+	sources/http/HttpResponse.cpp\
 
 INC = sources/core/
 
