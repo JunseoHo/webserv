@@ -3,13 +3,17 @@ server:
   server_name: example1.com
   host: 127.0.0.1
   error_page: /error.html
-  index: index1.html
+  index: index.html
   client_max_body_size: 1024
   root: /var/www/html
   location: /
     allow_methods: GET POST DELETE
     root: /var/www/html
     autoindex: on
+  location: /42_logo.svg
+    allow_methods: GET POST DELETE
+    root: /var/www/html
+    alias: /var/www/html/logo.svg
   location: /redirect
     return: 301 https://example.com
   location: ~ \.php$

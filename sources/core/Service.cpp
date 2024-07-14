@@ -114,41 +114,52 @@ void Service::handleEvent(int clientSocketFd) {
     httpRequest.parse(buffer);
     Server server = config.selectServer(httpRequest);
 
-    HttpResponse httpResponse;
-    httpResponse.configParse(server, httpRequest);
+    // server clientMaxBodySize 가 0이 아닌 경우, body size 체크, 초과시 413
+    if (server.clientMaxBodySize != 0 && httpRequest.body.size() > server.clientMaxBodySize) {
+        HttpResponse httpResponse(server, httpRequest, 413);
+        std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
+        std::cout << httpResponse.response;
+        std::cout << std::endl << "=============================" << std::endl << std::endl;
+        send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+        return;
+    }
+
+    // target에 해당하는 location 찾기, 없으면 404, 폴더로 끝나는 경우 index.html로 리다이렉트 (이후 수정 필요)
+    if (httpRequest.target.back() == '/') {
+        httpRequest.target = "/index.html";
+    }
+    Route route;
+    for (std::list<Route>::const_iterator it = server.routes.begin(); it != server.routes.end(); it++) {
+        if (it->location == httpRequest.target) {
+            route = *it;
+            break;
+        }
+    }
+    if (route.location.empty())
+    {
+        HttpResponse httpResponse(server, httpRequest, 404);
+        std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
+        std::cout << httpResponse.response;
+        std::cout << std::endl << "=============================" << std::endl << std::endl;
+        send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+        return;
+    }
+
+    // method가 허용되지 않으면 405
+    if (!(route.acceptedHttpMethods & httpRequest.method)) {
+        HttpResponse httpResponse(server, httpRequest, 405);
+        std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
+        std::cout << httpResponse.response;
+        std::cout << std::endl << "=============================" << std::endl << std::endl;
+        send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+        return;
+    }
+
+    HttpResponse httpResponse(server, httpRequest, 200);
     std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
     std::cout << httpResponse.response;
     std::cout << std::endl << "=============================" << std::endl << std::endl;
     send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-
-    // std::string response = "";
-    // if (httpRequest.method == GET) {
-    //     std::string responseBody = readFileToString(_resourcesPath + httpRequest.target);
-    //     if (endsWith(httpRequest.target, ".svg"))
-    //     {
-    //         response = "HTTP/1.1 200 OK\r\nContent-Type: image/svg+xml\r\nContent-Length: "
-    //             + std::to_string(responseBody.length()) + "\r\n\r\n"
-    //             + responseBody;
-    //     }
-    //     else
-    //     {
-    //         response = "HTTP/1.1 200 OK\r\nContent-Length: "
-    //             + std::to_string(responseBody.length()) + "\r\n\r\n"
-    //             + responseBody;
-    //     }
-    //     send(clientSocketFd, response.c_str(), response.size(), 0);
-    // } else if (httpRequest.method == POST) {
-    //     std::string requestBody = httpRequest.body;
-    //     std::string filePath = "post" + httpRequest.target;
-    //     std::ofstream outfile(filePath);
-    //     if (outfile.is_open()) {
-    //         outfile << requestBody;
-    //         outfile.close();
-    //         response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
-    //     } else {
-    //         response = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n";
-    //     }
-    // }
 }
 
 

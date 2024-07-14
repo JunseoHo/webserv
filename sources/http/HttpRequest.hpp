@@ -20,9 +20,8 @@ class HttpRequest : public Http
 
 		EHttpMethod method;
 		std::string target;
-		std::string version;
 
-		virtual bool parse(const std::string& s);
+		bool parse(const std::string& s);
 		std::string getValue(const std::string& key);
 };
 
