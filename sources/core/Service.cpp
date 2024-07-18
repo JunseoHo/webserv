@@ -69,11 +69,14 @@ void Service::setupSockets() {
         _pollFds[index].revents = 0;
 
         _serverSocketFds.push_back(serverSocketFd);
+        _serverSocketToPort[serverSocketFd] = port; // 매핑 추가
+
         index++;
 
         std::cout << "Port " << port << " is listening..." << std::endl;
     }
 }
+
 
 void Service::eventLoop() {
     while (true) {
@@ -89,17 +92,22 @@ void Service::eventLoop() {
                     clientPollFd.events = POLLIN;
                     clientPollFd.revents = 0;
                     _pollFds.push_back(clientPollFd);
+
+                    // 클라이언트 소켓과 포트 번호 매핑 추가
+                    _clientSocketToPort[clientSocketFd] = _serverSocketToPort[_pollFds[i].fd];
                 }
                 else {  // 클라이언트 소켓인 경우
                     handleEvent(_pollFds[i].fd);
                     close(_pollFds[i].fd);
                     _pollFds.erase(_pollFds.begin() + i);
+                    _clientSocketToPort.erase(_pollFds[i].fd); // 매핑 제거
                     --i;
                 }
             }
         }
     }
 }
+
 
 void Service::handleEvent(int clientSocketFd) {
     char buffer[BUFFER_SIZE];
@@ -112,7 +120,10 @@ void Service::handleEvent(int clientSocketFd) {
 
     HttpRequest httpRequest;
     httpRequest.parse(buffer);
-    Server server = config.selectServer(httpRequest);
+
+    // 요청이 들어온 포트 번호를 가져옴
+    int port = _clientSocketToPort[clientSocketFd];
+    Server server = config.selectServer(httpRequest, port);
 
     // server clientMaxBodySize 가 0이 아닌 경우, body size 체크, 초과시 413
     if (server.clientMaxBodySize != 0 && httpRequest.body.size() > server.clientMaxBodySize) {
