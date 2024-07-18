@@ -149,9 +149,17 @@ std::list<int> Config::getPorts() const {
 	return ports;
 }
 
-Server& Config::selectServer(HttpRequest& httpRequest) const {
+Server& Config::selectServer(HttpRequest& httpRequest, int port) const {
+	Server* defaultServer = NULL;
 	for (std::list<Server>::const_iterator it = mServers.begin(); it != mServers.end(); ++it)
-		if (it->host == httpRequest.getValue("Host"))
-			return const_cast<Server &>(*it);
-	return const_cast<Server &>(*mServers.begin());
+	{
+		if (it->port == port)
+		{
+			if (defaultServer == NULL)
+				defaultServer = const_cast<Server*>(&(*it));
+			if (it->host == httpRequest.getValue("Host"))
+				return const_cast<Server &>(*it);	
+		}
+	}
+	return const_cast<Server &>(*defaultServer);
 }

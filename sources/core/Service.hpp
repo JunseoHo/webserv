@@ -40,6 +40,8 @@ class Service {
         std::vector<pollfd> _pollFds;
         std::vector<int> _serverSocketFds;
         static const int _backLog;
+		std::map<int, int> _serverSocketToPort;
+		std::map<int, int> _clientSocketToPort;
 };
 
 #endif
