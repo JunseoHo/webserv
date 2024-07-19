@@ -142,8 +142,8 @@ void Config::print(void) const
 	}
 }
 
-std::list<int> Config::getPorts() const {
-	std::list<int> ports;
+std::vector<int> Config::getPorts() const {
+	std::vector<int> ports;
 	for (std::list<Server>::const_iterator it = mServers.begin(); it != mServers.end(); ++it)
 		ports.push_back(it->port);
 	return ports;

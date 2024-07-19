@@ -8,6 +8,7 @@
 # include <sstream>
 # include <string>
 # include <list>
+# include <vector>
 # include "../http/HttpRequest.hpp"
 
 struct Route
@@ -49,7 +50,7 @@ class Config
 			virtual const char* what() const throw();
 		};
 
-		std::list<int> getPorts() const;
+		std::vector<int> getPorts() const;
 
 	private:
 		std::list<Server> mServers;

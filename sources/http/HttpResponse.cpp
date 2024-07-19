@@ -111,7 +111,7 @@ HttpResponse::HttpResponse(const Server &server, const HttpRequest &request, int
         std::string target = server.errorPage;
         if (target == "")
             target = "/error.html";
-        body = readFileToString("resources" + target);
+        body = readFileToString("resources/" + target);
         if (endsWith(target, ".svg"))
             headers["Content-Type"] = "image/svg+xml";
         headers["Content-Length"] = std::to_string(body.length());
@@ -124,7 +124,7 @@ HttpResponse::HttpResponse(const Server &server, const HttpRequest &request, int
             {
                 if (endsWith(request.target, ".svg"))
                     headers["Content-Type"] = "image/svg+xml";
-                body = readFileToString("resources" + request.target);
+                body = readFileToString("resources/" + request.target);
                 headers["Content-Length"] = std::to_string(body.length());
             }
         }

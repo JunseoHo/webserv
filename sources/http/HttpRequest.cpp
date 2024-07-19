@@ -49,10 +49,6 @@ bool HttpRequest::parse(const std::string& s) {
     if (target == "" || version == "")
         return false;
 
-    // default page
-    if (target == "/")
-        target = "/index.html";
-
     return true;
 }
 

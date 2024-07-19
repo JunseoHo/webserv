@@ -1,6 +1,7 @@
 #include <list>
 #include "../config/Config.hpp"
 #include "Service.hpp"
+
 int main(int argc, char *argv[]) {
 	if (argc != 2) {
 		std::cerr << "Usage: ./webserv <config_file>" << std::endl;
@@ -9,10 +10,7 @@ int main(int argc, char *argv[]) {
 	std::string configPath = argv[1];
 	Config config(configPath);
 	config.print();
-	std::string root = "resources";
-
-	Service service(config, root);
+	Service service(config, ROOT);
 	service.Start();
-
     return 0;
 }

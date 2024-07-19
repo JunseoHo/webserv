@@ -1,7 +1,6 @@
 #ifndef SERVICE_HPP
 # define SERVICE_HPP
 
-# define BUFFER_SIZE 1024
 # include <list>
 # include <string>
 # include <vector>
@@ -18,6 +17,8 @@
 # include "../http/HttpRequest.hpp"
 # include "../http/HttpResponse.hpp"
 # include "../config/Config.hpp"
+# define BUFFER_SIZE 1024
+# define ROOT "/Users/jho/Desktop/webserv/resources/"
 
 class Service {
     public:
@@ -34,8 +35,9 @@ class Service {
         void setNonBlocking(int fd);
         void setupSockets();
         void eventLoop();
-        void handleEvent(int clientSocketFd);
+        bool handleEvent(int clientSocketFd);
     
+		std::map<int, std::string> _bufferTable;
         std::string _resourcesPath;
         std::vector<pollfd> _pollFds;
         std::vector<int> _serverSocketFds;
