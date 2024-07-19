@@ -78,13 +78,15 @@ void Service::eventLoop() {
 
                     // 클라이언트 소켓과 포트 번호 매핑 추가
                     _clientSocketToPort[clientSocketFd] = _serverSocketToPort[_pollFds[i].fd];
+                    _bufferTable[clientSocketFd] = "";
                 }
                 else {  // 클라이언트 소켓인 경우
                     if (handleEvent(_pollFds[i].fd))
 					{
+                        _bufferTable.erase(_pollFds[i].fd);
+                        _clientSocketToPort.erase(_pollFds[i].fd); // 매핑 제거
                     	close(_pollFds[i].fd);
 	                    _pollFds.erase(_pollFds.begin() + i);
-	                    _clientSocketToPort.erase(_pollFds[i].fd); // 매핑 제거
 	                    --i;
 					}
                 }
@@ -97,16 +99,14 @@ void Service::eventLoop() {
 bool Service::handleEvent(int clientSocketFd) {
 	std::cout << "Handle!" << std::endl;
 	char buffer[BUFFER_SIZE];
-	if (_bufferTable.find(clientSocketFd) == _bufferTable.end())
-		_bufferTable[clientSocketFd] = "";
     int size = recv(clientSocketFd, buffer, BUFFER_SIZE - 1, 0);	// 클라이언트 소켓으로부터 Http 리퀘스트 내용 읽기
-	buffer[BUFFER_SIZE - 1] = '\0';
-	_bufferTable[clientSocketFd] += std::string(buffer);
+	buffer[size] = '\0';
+	_bufferTable[clientSocketFd] += buffer;
 	if (size < BUFFER_SIZE - 1)
 	{
 		std::cout << "Write Up!" << std::endl;
 		std::cout << std::endl << "========== Request ==========" << std::endl << std::endl;
-	    std::cout << buffer;
+	    std::cout << _bufferTable[clientSocketFd];
 	    std::cout << std::endl << "=============================" << std::endl << std::endl;
 
 	    HttpRequest httpRequest;
@@ -126,17 +126,18 @@ bool Service::handleEvent(int clientSocketFd) {
 	    //    return true;
 	    //}
 
-	    // target에 해당하는 location 찾기, 없으면 404, 폴더로 끝나는 경우 index.html로 리다이렉트 (이후 수정 필요)
-	    if (httpRequest.target.back() == '/') {
-	        httpRequest.target = "/index.html";
-	    }
+        if (httpRequest.target.back() == '/')
+            httpRequest.target = "/" + server.index;
+
 	    Route route;
 	    for (std::list<Route>::const_iterator it = server.routes.begin(); it != server.routes.end(); it++) {
-	        if (it->location == httpRequest.target) {
-	            route = *it;
+            std::cout << server.root + it->location + httpRequest.target << std::endl;
+	        if (access((server.root + it->location + httpRequest.target).c_str(), F_OK) != -1) {
+                route = *it;
 	            break;
 	        }
 	    }
+
 	    if (route.location.empty())
 	    {
 	        HttpResponse httpResponse(server, httpRequest, 404);

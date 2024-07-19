@@ -27,6 +27,7 @@ struct Server
 	int						port;
 	std::list<std::string> 	names;
 	int						clientMaxBodySize;
+	std::string				index;
 	std::string				root;
 	std::list<Route>		routes;
 	std::string errorPage;

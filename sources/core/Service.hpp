@@ -18,7 +18,7 @@
 # include "../http/HttpResponse.hpp"
 # include "../config/Config.hpp"
 # define BUFFER_SIZE 1024
-# define ROOT "/Users/jho/Desktop/webserv/resources/"
+# define ROOT "/Users/gimgibeom/webserv/resources"
 
 class Service {
     public:

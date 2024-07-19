@@ -1,5 +1,6 @@
 #include "HttpResponse.hpp"
 #include <string>
+#include <unistd.h>
 
 HttpResponse::HttpResponse()
 {
@@ -108,23 +109,19 @@ HttpResponse::HttpResponse(const Server &server, const HttpRequest &request, int
 
     if (statusCode != 200)
     {
-        std::string target = server.errorPage;
-        if (target == "")
-            target = "/error.html";
-        body = readFileToString("resources/" + target);
-        if (endsWith(target, ".svg"))
-            headers["Content-Type"] = "image/svg+xml";
+        body = readFileToString(server.root + server.errorPage);
+        headers["Content-Type"] = "text/html";
         headers["Content-Length"] = std::to_string(body.length());
     }
     else
     {
         for (std::list<Route>::const_iterator it = server.routes.begin(); it != server.routes.end(); it++)
         {
-            if (it->location == request.target)
+            if (access((server.root + it->location + request.target).c_str(), F_OK) != -1)
             {
                 if (endsWith(request.target, ".svg"))
                     headers["Content-Type"] = "image/svg+xml";
-                body = readFileToString("resources/" + request.target);
+                body = readFileToString(server.root + it->location + request.target);
                 headers["Content-Length"] = std::to_string(body.length());
             }
         }

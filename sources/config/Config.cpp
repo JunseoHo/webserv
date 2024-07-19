@@ -74,6 +74,8 @@ Config::Config(std::string &configFilePath)
 				iss >> currentServer.root;
 			else if (key == "error_page:")
 				iss >> currentServer.errorPage;
+			else if (key == "index:")
+				iss >> currentServer.index;
 			else if (inLocationBlock)
 			{
 				if (key == "allow_methods:")
