@@ -115,13 +115,13 @@ HttpResponse::HttpResponse(const Server &server, const HttpRequest &request, int
     }
     else
     {
-        for (std::list<Route>::const_iterator it = server.routes.begin(); it != server.routes.end(); it++)
+        for (std::list<Location>::const_iterator it = server.locations.begin(); it != server.locations.end(); it++)
         {
-            if (access((server.root + it->location + request.target).c_str(), F_OK) != -1)
+            if (access((server.root + it->path + request.target).c_str(), F_OK) != -1)
             {
                 if (endsWith(request.target, ".svg"))
                     headers["Content-Type"] = "image/svg+xml";
-                body = readFileToString(server.root + it->location + request.target);
+                body = readFileToString(server.root + it->path + request.target);
                 headers["Content-Length"] = std::to_string(body.length());
             }
         }

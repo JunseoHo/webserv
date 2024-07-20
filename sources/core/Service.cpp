@@ -95,6 +95,11 @@ void Service::eventLoop() {
     }
 }
 
+bool startsWith(const std::string& str, const std::string& prefix) {
+	if (prefix.size() > str.size())
+        return false;
+    return std::equal(prefix.begin(), prefix.end(), str.begin());
+}
 
 bool Service::handleEvent(int clientSocketFd) {
 	char buffer[BUFFER_SIZE];
@@ -114,6 +119,8 @@ bool Service::handleEvent(int clientSocketFd) {
 	    int port = _clientSocketToPort[clientSocketFd];
 	    Server server = config.selectServer(httpRequest, port);
 
+		std::cout << "Selected server name: " << server.serverName << std::endl;
+
 	    // server clientMaxBodySize 가 0이 아닌 경우, body size 체크, 초과시 413
 	    //if (server.clientMaxBodySize != 0 && httpRequest.body.size() > server.clientMaxBodySize) {
 	    //    HttpResponse httpResponse(server, httpRequest, 413);
@@ -124,38 +131,41 @@ bool Service::handleEvent(int clientSocketFd) {
 	    //    return true;
 	    //}
 
-        if (httpRequest.target.back() == '/')
-            httpRequest.target = "/" + server.index;
-
-	    Route route;
-	    for (std::list<Route>::const_iterator it = server.routes.begin(); it != server.routes.end(); it++) {
-            std::cout << server.root + it->location + httpRequest.target << std::endl;
-	        if (access((server.root + it->location + httpRequest.target).c_str(), F_OK) != -1) {
-                route = *it;
-	            break;
-	        }
+	    Location location = *(server.locations.begin()); // 만약 적절한 로케이션이 없다면 첫번째 로케이션으로 라우팅
+	    for (std::list<Location>::const_iterator it = server.locations.begin(); it != server.locations.end(); it++) {
+			std::cout << httpRequest.target << std::endl;
+			if (startsWith(httpRequest.target, it->path))
+			{
+				location = *it;
+				break;
+			}
 	    }
 
-	    if (route.location.empty())
-	    {
-	        HttpResponse httpResponse(server, httpRequest, 404);
-	        std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
-	        std::cout << httpResponse.response;
-	        std::cout << std::endl << "=============================" << std::endl << std::endl;
-	        send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-	        return true;
-	    }
+		std::cout << "Selected location path: " << location.path << std::endl;
+
+	    //if (location.path.empty())
+	    //{
+	    //    HttpResponse httpResponse(server, httpRequest, 404);
+	    //    std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
+	    //    std::cout << httpResponse.response;
+	    //    std::cout << std::endl << "=============================" << std::endl << std::endl;
+	    //    send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+	    //    return true;
+	    //}
 
 	    // method가 허용되지 않으면 405
-		std::cout << route.acceptedHttpMethods << std::endl;
-	    if (!(route.acceptedHttpMethods & httpRequest.method)) {
-	        HttpResponse httpResponse(server, httpRequest, 405);
-	        std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
-	        std::cout << httpResponse.response;
-	        std::cout << std::endl << "=============================" << std::endl << std::endl;
-	        send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-	        return true;
-	    }
+		//std::cout << location.acceptedHttpMethods << std::endl;
+	    //if (!(location.acceptedHttpMethods & httpRequest.method)) {
+	    //    HttpResponse httpResponse(server, httpRequest, 405);
+	    //    std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
+	    //    std::cout << httpResponse.response;
+	    //    std::cout << std::endl << "=============================" << std::endl << std::endl;
+	    //    send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+	    //    return true;
+	    //}
+
+		std::string uri = server.root + httpRequest.target;
+		std::cout << "URI: " << uri << std::endl;
 
 	    HttpResponse httpResponse(server, httpRequest, 200);
 	    std::cout << std::endl << "========== Response =========" << std::endl << std::endl;

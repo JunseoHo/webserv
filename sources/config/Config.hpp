@@ -11,10 +11,10 @@
 # include <vector>
 # include "../http/HttpRequest.hpp"
 
-struct Route
+struct Location
 {
-	std::string	location;
-	int			acceptedHttpMethods;
+	std::string	path;
+	int			acceptedHttpMethods = 7;
 	bool		autoIndex;
 	std::string index;
 };
@@ -22,14 +22,11 @@ struct Route
 struct Server
 {
 	Server();
-	int 					status;
-	std::string				host;
-	int						port;
-	std::list<std::string> 	names;
+	int						listen;
+	std::string 			serverName;
 	int						clientMaxBodySize;
-	std::string				index;
 	std::string				root;
-	std::list<Route>		routes;
+	std::list<Location>		locations;
 	std::string errorPage;
 };
 
@@ -54,7 +51,7 @@ class Config
 		std::vector<int> getPorts() const;
 
 	private:
-		std::list<Server> mServers;
+		std::list<Server> _servers;
 };
 
 #endif
