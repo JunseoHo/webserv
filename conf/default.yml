@@ -1,43 +1,15 @@
 server:
-  listen: 80
-  server_name: example1.com
-  error_page: error.html
-  index: index.html
-  client_max_body_size: 1024
-  root: /Users/gimgibeom/webserv
-  location: /
-    allow_methods: GET POST DELETE
-    root: /Users/gimgibeom/webserv
-    index: index.html
-    autoindex: on
-  location: /resources
-    allow_methods: GET POST DELETE
-    root: /Users/gimgibeom/webserv
-    index: index.html
-    autoindex: on
-  location: /redirect
-    return: 301 https://example.com
-  location: ~ \.php$
-    fastcgi_pass:
-    
-server:
   listen: 8080
-  server_name: example2.com
+  server_name: www.42seoul.org
   error_page: error.html
   index: index.html
   client_max_body_size: 1024
-  root: /Users/gimgibeom/webserv
-  location: /
-    allow_methods: GET POST DELETE
-    root: /Users/gimgibeom/webserv
+  root: resources
+  location: /guide
+    allow_methods: GET
+    index: index.html
+    autoindex: off
+  location: /exam
+    allow_methods: POST
     index: index.html
     autoindex: on
-  location: /resources/
-    allow_methods: GET POST DELETE
-    root: /Users/gimgibeom/webserv
-    index: index.html
-    autoindex: on
-  location: /redirect
-    return: 301 https://example.com
-  location: ~ \.php$
-    fastcgi_pass:

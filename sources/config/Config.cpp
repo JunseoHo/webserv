@@ -18,8 +18,8 @@ Config::Config(const Config& other) {
 
 Config::Config(std::string &configFilePath)
 {
-	std::ifstream file(configFilePath.c_str());
-	if (!file.is_open())
+	std::ifstream configFile(configFilePath.c_str());
+	if (!configFile.is_open())
 		throw std::runtime_error("Could not open configuration file.");
 
 	std::string line;
@@ -28,7 +28,7 @@ Config::Config(std::string &configFilePath)
 	bool inServerBlock = false;
 	bool inLocationBlock = false;
 
-	while (std::getline(file, line))
+	while (std::getline(configFile, line))
 	{
 		std::istringstream iss(line);
 		std::string key;
@@ -106,7 +106,7 @@ Config::Config(std::string &configFilePath)
 		currentServer.status = ON;
 		mServers.push_back(currentServer);
 	}
-	file.close();
+	configFile.close();
 }
 
 const char* Config::InvalidConfigFormatException::what() const throw()

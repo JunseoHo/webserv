@@ -97,14 +97,12 @@ void Service::eventLoop() {
 
 
 bool Service::handleEvent(int clientSocketFd) {
-	std::cout << "Handle!" << std::endl;
 	char buffer[BUFFER_SIZE];
     int size = recv(clientSocketFd, buffer, BUFFER_SIZE - 1, 0);	// 클라이언트 소켓으로부터 Http 리퀘스트 내용 읽기
 	buffer[size] = '\0';
 	_bufferTable[clientSocketFd] += buffer;
 	if (size < BUFFER_SIZE - 1)
 	{
-		std::cout << "Write Up!" << std::endl;
 		std::cout << std::endl << "========== Request ==========" << std::endl << std::endl;
 	    std::cout << _bufferTable[clientSocketFd];
 	    std::cout << std::endl << "=============================" << std::endl << std::endl;
@@ -149,6 +147,7 @@ bool Service::handleEvent(int clientSocketFd) {
 	    }
 
 	    // method가 허용되지 않으면 405
+		std::cout << route.acceptedHttpMethods << std::endl;
 	    if (!(route.acceptedHttpMethods & httpRequest.method)) {
 	        HttpResponse httpResponse(server, httpRequest, 405);
 	        std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
