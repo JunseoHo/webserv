@@ -124,51 +124,41 @@ bool Service::handleEvent(int clientSocketFd) {
 
 		std::cout << "Selected server name: " << server.serverName << std::endl;
 
+        int statusCode = 200;
+
 	    // server clientMaxBodySize 가 0이 아닌 경우, body size 체크, 초과시 413
-	    //if (server.clientMaxBodySize != 0 && httpRequest.body.size() > server.clientMaxBodySize) {
-	    //    HttpResponse httpResponse(server, httpRequest, 413);
-	    //    std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
-	    //    std::cout << httpResponse.response;
-	    //    std::cout << std::endl << "=============================" << std::endl << std::endl;
-	    //    send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-	    //    return true;
-	    //}
+	    if (server.clientMaxBodySize != 0 && httpRequest.body.size() > server.clientMaxBodySize) {
+            statusCode = 413;
+	    }
 
 	    Location location = config.findLocation(server, httpRequest.target);
 
 		std::cout << "Selected location path: " << location.path << std::endl;
 
-	    //if (location.path.empty())
-	    //{
-	    //    HttpResponse httpResponse(server, httpRequest, 404);
-	    //    std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
-	    //    std::cout << httpResponse.response;
-	    //    std::cout << std::endl << "=============================" << std::endl << std::endl;
-	    //    send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-	    //    return true;
-	    //}
-
 	    // method가 허용되지 않으면 405
-		//std::cout << location.acceptedHttpMethods << std::endl;
-	    //if (!(location.acceptedHttpMethods & httpRequest.method)) {
-	    //    HttpResponse httpResponse(server, httpRequest, 405);
-	    //    std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
-	    //    std::cout << httpResponse.response;
-	    //    std::cout << std::endl << "=============================" << std::endl << std::endl;
-	    //    send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-	    //    return true;
-	    //}
+        std::cout << "Accepted HTTP Methods: " << location.acceptedHttpMethods << std::endl;
+        std::cout << "Request Method: " << httpRequest.method << std::endl;
+	    if (!(location.acceptedHttpMethods & httpRequest.method)) {
+            statusCode = 405;
+	    }
 
 		std::string uri = server.root + httpRequest.target;
 		std::cout << "URI: " << uri << std::endl;
         // uri가 존재하는지 확인
+        if (access(uri.substr(1).c_str(), F_OK) == -1) {
+            statusCode = 404;
+        }
+        // uri가 디렉토리인 경우 index 파일로 리다이렉트
         if (isDirectory(uri.substr(1))) {
             if (uri.back() != '/')
                 uri += '/';
             uri += location.index;
         }
 
-	    HttpResponse httpResponse(uri, httpRequest, 200);
+        if (statusCode != 200)
+            uri = server.root + "/" + server.errorPage;
+
+	    HttpResponse httpResponse(uri, httpRequest, statusCode);
 	    std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
 	    std::cout << httpResponse.response;
 	    std::cout << std::endl << "=============================" << std::endl << std::endl;

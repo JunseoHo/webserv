@@ -14,7 +14,7 @@
 struct Location
 {
 	std::string	path;
-	int			acceptedHttpMethods = 7;
+	int			acceptedHttpMethods;
 	bool		autoIndex;
 	std::string index;
 };

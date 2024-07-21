@@ -78,9 +78,14 @@ Config::Config(std::string &configFilePath)
 				currentServer->root = value;
 			else if (key == "path")
 				currentLocation->path = value;
-			else if (key == "allowed_methods")
+			else if (key == "allow_methods")
 			{
-			
+				if (value.find("GET") != std::string::npos)
+					currentLocation->acceptedHttpMethods |= 1;
+				if (value.find("POST") != std::string::npos)
+					currentLocation->acceptedHttpMethods |= 2;
+				if (value.find("DELETE") != std::string::npos)
+					currentLocation->acceptedHttpMethods |= 4;
 			}
 			else if (key == "index")
 				currentLocation->index = value;
@@ -133,6 +138,7 @@ void Config::print(void) const
 	    for (std::list<Location>::const_iterator it2 = it->locations.begin(); it2 != it->locations.end(); ++it2) {
 	        const Location& location = *it2;
 			std::cout << "\tLocation:\n";
+			std::cout << "\t\tAccepted HTTP Methods: " << location.acceptedHttpMethods << "\n";
 	        std::cout << "\t\tPath: " << location.path << "\n";
 	        std::cout << "\t\tIndex: " << location.index << "\n";
 	        std::cout << "\t\tAutoindex: " << (location.autoIndex ? "on" : "off") << "\n";
