@@ -10,7 +10,7 @@ HttpResponse::HttpResponse()
 }
 
 std::string readFileToString(const std::string& filename) {
-    std::ifstream file(filename);
+    std::ifstream file(filename.substr(1));
     if (!file.is_open()) {
         std::cerr << "Failed to open file: " << filename << std::endl;
         return "";
@@ -25,7 +25,7 @@ bool endsWith(const std::string& str, const std::string& suffix) {
     return str.substr(str.length() - suffix.length()) == suffix;
 }
 
-HttpResponse::HttpResponse(const Server &server, const HttpRequest &request, int statusCode)
+HttpResponse::HttpResponse(const std::string& uri, const HttpRequest &request, int statusCode)
 {
     version = request.version;
     this->statusCode = statusCode;
@@ -107,25 +107,27 @@ HttpResponse::HttpResponse(const Server &server, const HttpRequest &request, int
 
     response = version + " " + std::to_string(statusCode) + " " + message + "\r\n";
 
-    if (statusCode != 200)
-    {
-        body = readFileToString(server.root + server.errorPage);
+    body = readFileToString(uri);
+    
+    headers["Content-Length"] = std::to_string(body.size());
+    if (endsWith(uri, ".svg"))
+        headers["Content-Type"] = "image/svg+xml";
+    else if (endsWith(uri, ".html"))
         headers["Content-Type"] = "text/html";
-        headers["Content-Length"] = std::to_string(body.length());
-    }
+    else if (endsWith(uri, ".css"))
+        headers["Content-Type"] = "text/css";
+    else if (endsWith(uri, ".js"))
+        headers["Content-Type"] = "text/javascript";
+    else if (endsWith(uri, ".jpg"))
+        headers["Content-Type"] = "image/jpeg";
+    else if (endsWith(uri, ".png"))
+        headers["Content-Type"] = "image/png";
+    else if (endsWith(uri, ".gif"))
+        headers["Content-Type"] = "image/gif";
+    else if (endsWith(uri, ".ico"))
+        headers["Content-Type"] = "image/x-icon";
     else
-    {
-        for (std::list<Location>::const_iterator it = server.locations.begin(); it != server.locations.end(); it++)
-        {
-            if (access((server.root + it->path + request.target).c_str(), F_OK) != -1)
-            {
-                if (endsWith(request.target, ".svg"))
-                    headers["Content-Type"] = "image/svg+xml";
-                body = readFileToString(server.root + it->path + request.target);
-                headers["Content-Length"] = std::to_string(body.length());
-            }
-        }
-    }
+        headers["Content-Type"] = "text/plain";
 
     for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); it++)
         response += it->first + ": " + it->second + "\r\n";
