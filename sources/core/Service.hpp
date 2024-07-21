@@ -14,6 +14,8 @@
 # include <filesystem>
 # include <iostream>
 # include <fcntl.h>
+# include <sys/types.h>
+# include <sys/stat.h>
 # include "../http/HttpRequest.hpp"
 # include "../http/HttpResponse.hpp"
 # include "../config/Config.hpp"

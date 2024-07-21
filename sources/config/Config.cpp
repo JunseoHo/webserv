@@ -162,3 +162,20 @@ Server& Config::selectServer(HttpRequest& httpRequest, int port) const {
 	}
 	return const_cast<Server &>(*defaultServer);
 }
+
+const Location& Config::findLocation(const Server& server, const std::string& uri) const {
+	// 가장 길게 매칭되는 location을 찾아서 반환
+	const Location* longestMatch = NULL;
+	for (std::list<Location>::const_iterator it = server.locations.begin(); it != server.locations.end(); ++it)
+	{
+		const Location& location = *it;
+		if (uri.find(location.path) == 0)
+		{
+			if (longestMatch == NULL || location.path.size() > longestMatch->path.size())
+				longestMatch = &location;
+		}
+	}
+	if (longestMatch == NULL)
+		return *(server.locations.begin());
+	return *longestMatch;
+}

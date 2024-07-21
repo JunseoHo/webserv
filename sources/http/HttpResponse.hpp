@@ -7,7 +7,7 @@ class HttpResponse : public Http
 {
 	public:
 		HttpResponse();
-		HttpResponse(const Server &server, const HttpRequest &requset, int statusCode);
+		HttpResponse(const std::string& uri, const HttpRequest &requset, int statusCode);
 		HttpResponse(const HttpResponse& obj) {};
 		~HttpResponse() {};
 

@@ -95,10 +95,13 @@ void Service::eventLoop() {
     }
 }
 
-bool startsWith(const std::string& str, const std::string& prefix) {
-	if (prefix.size() > str.size())
-        return false;
-    return std::equal(prefix.begin(), prefix.end(), str.begin());
+bool isDirectory(const std::string& path) {
+    struct stat s;
+    if (stat(path.c_str(), &s) == 0) {
+        if (s.st_mode & S_IFDIR)
+            return true;
+    }
+    return false;
 }
 
 bool Service::handleEvent(int clientSocketFd) {
@@ -131,15 +134,7 @@ bool Service::handleEvent(int clientSocketFd) {
 	    //    return true;
 	    //}
 
-	    Location location = *(server.locations.begin()); // 만약 적절한 로케이션이 없다면 첫번째 로케이션으로 라우팅
-	    for (std::list<Location>::const_iterator it = server.locations.begin(); it != server.locations.end(); it++) {
-			std::cout << httpRequest.target << std::endl;
-			if (startsWith(httpRequest.target, it->path))
-			{
-				location = *it;
-				break;
-			}
-	    }
+	    Location location = config.findLocation(server, httpRequest.target);
 
 		std::cout << "Selected location path: " << location.path << std::endl;
 
@@ -166,8 +161,14 @@ bool Service::handleEvent(int clientSocketFd) {
 
 		std::string uri = server.root + httpRequest.target;
 		std::cout << "URI: " << uri << std::endl;
+        // uri가 존재하는지 확인
+        if (isDirectory(uri.substr(1))) {
+            if (uri.back() != '/')
+                uri += '/';
+            uri += location.index;
+        }
 
-	    HttpResponse httpResponse(server, httpRequest, 200);
+	    HttpResponse httpResponse(uri, httpRequest, 200);
 	    std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
 	    std::cout << httpResponse.response;
 	    std::cout << std::endl << "=============================" << std::endl << std::endl;
