@@ -107,10 +107,13 @@ HttpResponse::HttpResponse(const std::string& uri, const HttpRequest &request, i
 
     response = version + " " + std::to_string(statusCode) + " " + message + "\r\n";
 
-    body = readFileToString(uri);
+    if (statusCode != 201)
+        body = readFileToString(uri);
     
     headers["Content-Length"] = std::to_string(body.size());
-    if (endsWith(uri, ".svg"))
+    if (statusCode == 201)
+        headers["Location"] = request.headers.at("Referer");
+    else if (endsWith(uri, ".svg"))
         headers["Content-Type"] = "image/svg+xml";
     else if (endsWith(uri, ".html"))
         headers["Content-Type"] = "text/html";

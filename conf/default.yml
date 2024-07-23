@@ -2,7 +2,7 @@ server:
   listen: 10028
   server_name: www.example.com
   error_page: error.html
-  client_max_body_size: 1024
+  client_max_body_size: 0
   root: /resources
   location: /
     allow_methods: GET POST
@@ -21,7 +21,7 @@ server:
   listen: 10029
   server_name: www.example.org
   error_page: error.html
-  client_max_body_size: 512
+  client_max_body_size: 0
   root: /resources
   location: /
     allow_methods: GET POST
