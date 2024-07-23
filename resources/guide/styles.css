@@ -1,0 +1,55 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f0f0f0;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    overflow: hidden; /* Prevent scrolling */
+    position: relative;
+}
+
+.container {
+    text-align: center;
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+}
+
+#bananaImage {
+    width: 100px;
+}
+
+#bananaCount {
+    font-size: 2em;
+    margin: 10px 0;
+}
+
+#increaseButton {
+    padding: 10px 20px;
+    font-size: 1em;
+    border: none;
+    border-radius: 5px;
+    background-color: #ffcc00;
+    cursor: pointer;
+}
+
+#increaseButton:hover {
+    background-color: #ff9900;
+}
+
+.falling-banana {
+    position: absolute;
+    width: 50px;
+    top: -50px; /* Start above the viewport */
+    animation: fall 2s linear; /* Duration set to 2 seconds */
+}
+
+@keyframes fall {
+    to {
+        transform: translateY(100vh); /* Fall through the entire viewport */
+    }
+}

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload and Delete</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .file-list {
+            list-style: none;
+            padding: 0;
+        }
+        .file-list li {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+        .file-list li span {
+            margin-right: 10px;
+        }
+        .file-list li button {
+            background-color: #ff4d4d;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>File Upload and Delete</h1>
+    <input type="file" id="fileInput" multiple>
+    <ul id="fileList" class="file-list"></ul>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+
+        fileInput.addEventListener('change', handleFileUpload);
+
+        function handleFileUpload(event) {
+            const files = event.target.files;
+            for (const file of files) {
+                const li = document.createElement('li');
+                const span = document.createElement('span');
+                span.textContent = file.name;
+                const button = document.createElement('button');
+                button.textContent = 'Delete';
+                button.addEventListener('click', () => {
+                    fileList.removeChild(li);
+                });
+                li.appendChild(span);
+                li.appendChild(button);
+                fileList.appendChild(li);
+            }
+        }
+    </script>
+</body>
+</html>
