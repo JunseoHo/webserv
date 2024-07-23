@@ -5,15 +5,15 @@ server:
   client_max_body_size: 1024
   root: /resources
   location: /
-    allow_methods: GET
+    allow_methods: GET POST
     index: index.html
     autoindex: on
   location: /guide
-    allow_methods: GET
+    allow_methods: GET POST
     index: html_guide.html
     autoindex: on
   location: /exam
-    allow_methods: POST
+    allow_methods: GET POST
     index: html_exam.html
     autoindex: off
 
@@ -24,14 +24,14 @@ server:
   client_max_body_size: 512
   root: /resources
   location: /
-    allow_methods: GET
+    allow_methods: GET POST
     index: index.html
     autoindex: on
   location: /guide
-    allow_methods: GET
+    allow_methods: GET POST
     index: html_guide.html
     autoindex: on
   location: /exam
-    allow_methods: POST
+    allow_methods: GET POST
     index: html_exam.html
     autoindex: off
