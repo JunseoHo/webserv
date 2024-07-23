@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Form</title>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var submitButton = document.getElementById('submitBtn');
+            var fileInput = document.getElementsByName('file')[0];
+
+            // 파일 입력 상태에 따라 업로드 버튼 활성화/비활성화
+            fileInput.addEventListener('change', function() {
+                if (fileInput.files.length > 0) {
+                    submitButton.disabled = false; // 파일이 있으면 버튼 활성화
+                } else {
+                    submitButton.disabled = true; // 파일이 없으면 버튼 비활성화
+                }
+            });
+
+            // 초기 상태에서는 업로드 버튼 비활성화
+            submitButton.disabled = true;
+        });
+    </script>
+</head>
+<body>
+    <form id="uploadForm" action="/guide" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" />
+        <input type="submit" value="Upload" id="submitBtn" />
+    </form>
+    <script>
+        document.getElementById('uploadForm').onsubmit = function(event) {
+            event.preventDefault(); // 기본 폼 제출 방지
+
+            var formData = new FormData(this);
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', this.action, true);
+            xhr.onload = function() {
+                if (xhr.status === 201 || xhr.status === 200) {
+                    // 성공 시 페이지 새로 고침
+                    alert('Upload success.');
+                    window.location.reload();
+                } else {
+                    // 실패 시 처리
+                    alert('Upload failed.');
+                }
+            };
+            xhr.send(formData);
+        };
+    </script>
+</body>
+</html>
