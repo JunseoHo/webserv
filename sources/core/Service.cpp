@@ -55,7 +55,7 @@ void Service::setupSockets() {
 
         _serverSocketFds.push_back(serverSocketFd);
         _serverSocketToPort[serverSocketFd] = port;
-
+        index++;
         std::cout << "Port " << port << " is listening..." << std::endl;
     }
 }

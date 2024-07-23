@@ -1,7 +1,6 @@
+TARGET = webserv
 CXX = c++
 CXXFLAGS = -std=c++98
-
-TARGET = webserv
 
 SRC = sources/core/main.cpp\
 	sources/core/Service.cpp\
@@ -17,4 +16,10 @@ $(TARGET): $(SRC)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRC) -I$(INC)
 
 clean:
-	rm -f $(TARGET)
+	rm -rf $(TARGET)
+
+re: 
+	$(MAKE) clean 
+	$(MAKE) all
+
+.PHONY: all clean fclean re

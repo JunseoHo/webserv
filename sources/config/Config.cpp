@@ -28,7 +28,7 @@ Config::Config(std::string &configFilePath)
 	std::ifstream configFile(configFilePath.c_str());
 
 	if (!configFile.is_open())
-		throw std::runtime_error("Could not open configuration file.");
+		throw std::runtime_error("Could not open configuration file."); // 프로그램이 중단되지 않고 있음
 
 	std::string line;
 	std::string key, value;
