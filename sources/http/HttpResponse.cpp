@@ -1,6 +1,11 @@
 #include "HttpResponse.hpp"
 #include <string>
 #include <unistd.h>
+#include <iostream>
+#include <dirent.h>
+#include <sys/types.h>
+#include <cerrno>
+#include <cstring>
 
 HttpResponse::HttpResponse()
 {
@@ -18,6 +23,30 @@ std::string readFileToString(const std::string& filename) {
     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     file.close();
     return content;
+}
+
+std::string listDirectory(const std::string& path) {
+    // 경로 문자열의 첫 글자를 제거
+    std::string modified_path = path.substr(1);
+
+    DIR *dir = opendir(modified_path.c_str());
+    if (dir == NULL) {
+        std::cerr << "Error opening directory: " << std::strerror(errno) << std::endl;
+        return "";
+    }
+
+    struct dirent *entry;
+    std::string file_list;
+    while ((entry = readdir(dir)) != NULL) {
+        // Ignore '.' and '..' entries
+        if (std::string(entry->d_name) != "." && std::string(entry->d_name) != "..") {
+            file_list += entry->d_name;
+            file_list += "\n";
+        }
+    }
+
+    closedir(dir);
+    return file_list;
 }
 
 bool endsWith(const std::string& str, const std::string& suffix) {
@@ -107,7 +136,9 @@ HttpResponse::HttpResponse(const std::string& uri, const HttpRequest &request, i
 
     response = version + " " + std::to_string(statusCode) + " " + message + "\r\n";
 
-    if (statusCode != 201)
+	if (uri.back() == '/')
+		body = listDirectory(uri);
+    else if (statusCode != 201)
         body = readFileToString(uri);
     
     headers["Content-Length"] = std::to_string(body.size());
