@@ -5,16 +5,28 @@ server:
   client_max_body_size: 0
   root: /resources
   location: /
-    allow_methods: GET POST
+    allow_methods: GET
     index: index.html
     autoindex: on
   location: /guide
-    allow_methods: GET POST
+    allow_methods: GET
     index: html_guide.html
     autoindex: on
   location: /exam
-    allow_methods: GET POST
+    allow_methods: GET
     index: html_exam.html
+    autoindex: off
+  location: /banana
+    allow_methods: GET
+    index: banana.html
+    autoindex: on
+  location: /upload
+    allow_methods: GET POST
+    index: upload.html
+    autoindex: off
+  location: /delete
+    allow_methods: GET POST DELETE
+    index: delete.html
     autoindex: off
 
 server:
@@ -24,14 +36,26 @@ server:
   client_max_body_size: 0
   root: /resources
   location: /
-    allow_methods: GET POST
+    allow_methods: GET
     index: index.html
     autoindex: on
   location: /guide
-    allow_methods: GET POST
+    allow_methods: GET
     index: html_guide.html
     autoindex: on
   location: /exam
-    allow_methods: GET POST
+    allow_methods: GET
     index: html_exam.html
+    autoindex: off
+  location: /banana
+    allow_methods: GET
+    index: banana.html
+    autoindex: on
+  location: /upload
+    allow_methods: GET POST
+    index: upload.html
+    autoindex: off
+  location: /delete
+    allow_methods: GET POST DELETE
+    index: delete.html
     autoindex: off

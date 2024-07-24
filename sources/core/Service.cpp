@@ -125,9 +125,7 @@ bool Service::handleEvent(int clientSocketFd) {
     int size = recv(clientSocketFd, buffer, BUFFER_SIZE - 1, 0);    // 클라이언트 소켓으로부터 Http 리퀘스트 내용 읽기
 	_bufferTable[clientSocketFd] += std::string(buffer, size);  // 바이너리 파일의 경우 null 문자가 있을 수 있으므로 size만큼만 추가
     // 헤더가 모두 받아졌는지 확인
-    size_t pos = _bufferTable[clientSocketFd].find("\r\n\r\n");
-    if (pos == std::string::npos)
-        return false;
+
 	if (isRequestBodyComplete(_bufferTable[clientSocketFd]))    // 리퀘스트의 헤더와 바디가 모두 받아졌는지 확인
 	{
 		std::cout << std::endl << "========== Request ==========" << std::endl << std::endl;
@@ -162,7 +160,8 @@ bool Service::handleEvent(int clientSocketFd) {
 	    }
 
 		std::string uri = server.root + httpRequest.target;
-		std::cout << "URI: " << uri << std::endl;
+        
+		std::cout << "URI: " << uri + httpRequest.referer << std::endl;
         // uri가 존재하는지 확인
         if (access(uri.substr(1).c_str(), F_OK) == -1) {
             statusCode = 404;
@@ -178,81 +177,94 @@ bool Service::handleEvent(int clientSocketFd) {
             send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
             return true;
         }
-
-        if (httpRequest.method == GET) {
-            // uri가 디렉토리인 경우 index 파일로 리다이렉트
-            if (isDirectory(uri.substr(1))) {
-                if (uri.back() != '/')
-                    uri += '/';
-                uri += location.index;
-            }
-
-            HttpResponse httpResponse(uri, httpRequest, statusCode);
-            std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
-            std::cout << httpResponse.response;
-            std::cout << std::endl << "=============================" << std::endl << std::endl;
-            send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-        } else if (httpRequest.method == POST) {
-            statusCode = 201;
-            // POST 요청 처리
-            // uri가 디렉토리인지 확인
-            if (!isDirectory(uri.substr(1))) {
-                statusCode = 404;
-            }
-            std::string contentType = httpRequest.headers["Content-Type"];
-            size_t boundaryPos = contentType.find("boundary=");
-            if (boundaryPos != std::string::npos) {
-                std::string boundary = contentType.substr(boundaryPos + 9);
-                std::string boundaryEnd = "--" + boundary + "--";
-                size_t pos = _bufferTable[clientSocketFd].find(boundaryEnd);
-                if (pos == std::string::npos) {
-                    statusCode = 400;
-                } else {
-                    std::string body = _bufferTable[clientSocketFd].substr(_bufferTable[clientSocketFd].find(boundary) + boundary.size() + 2, pos - _bufferTable[clientSocketFd].find(boundary) - boundary.size() - 2);
-                    std::string path = server.root + location.path;
-                    if (isDirectory(path.substr(1))) {
-                        if (path.back() != '/')
-                            path += '/';
-                        std::string filename = path + body.substr(body.find("filename=\"") + 10, body.find("\"", body.find("filename=\"") + 10) - body.find("filename=\"") - 10);
-                        std::ofstream file(filename.substr(1), std::ios::binary);
-                        // body에서 boundary 데이터만 추출
-                        body = body.substr(body.find(boundary) + boundary.size() + 2);
-                        // body에서 바이너리 데이터만 추출
-                        body = body.substr(body.find("\r\n\r\n") + 4);
-                        // body에서 마지막 엔터 제거
-                        body = body.substr(0, body.size() - 2);
-                        std::cout << "---------- File Content ----------" << std::endl;
-                        std::cout << body << std::endl;
-                        std::cout << "----------------------------------" << std::endl;
-                        file.write(body.c_str(), body.size());
-                        file.close();
-                    }
-                    else
-                        statusCode = 404;
-                }
-            } else {
-                statusCode = 400;
-            }
-            HttpResponse httpResponse(uri, httpRequest, statusCode);
-            std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
-            std::cout << httpResponse.response;
-            std::cout << std::endl << "=============================" << std::endl << std::endl;
-            send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-        } else if (httpRequest.method == DELETE) {
-
-        }
+        if (httpRequest.method == GET)
+            getMethod(uri, httpRequest, location, statusCode, clientSocketFd);
+        else if (httpRequest.method == POST)
+            postMethod(uri, httpRequest, server, location, clientSocketFd);
+        else if (httpRequest.method == DELETE)
+            deleteMethod(uri, httpRequest, statusCode, clientSocketFd);
+        else
+            statusCode = 405;
 		return true;
 	}
 	return false;
 }
 
+void Service::getMethod(std::string& uri,
+                        HttpRequest& httpRequest,
+                        const Location& location,
+                        int& statusCode,
+                        int& clientSocketFd) {
+    // uri가 디렉토리인 경우 index 파일로 리다이렉트
+    if (isDirectory(uri.substr(1))) {
+        if (uri.back() != '/')
+            uri += '/';
+        uri += location.index;
+    }
+    HttpResponse httpResponse(uri, httpRequest, statusCode);
+    std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
+    std::cout << httpResponse.response;
+    std::cout << std::endl << "=============================" << std::endl << std::endl;
+    send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+}
 
+void Service::postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd) {
+    int statusCode = 201;
+    // POST 요청 처리
+    // uri가 디렉토리인지 확인
+    if (!isDirectory(uri.substr(1)))
+        statusCode = 404;
+    std::string contentType = httpRequest.headers["Content-Type"];
+    size_t boundaryPos = contentType.find("boundary=");
+    if (boundaryPos != std::string::npos) {
+        std::string boundary = contentType.substr(boundaryPos + 9);
+        std::string boundaryEnd = "--" + boundary + "--";
+        size_t pos = _bufferTable[clientSocketFd].find(boundaryEnd);
+        if (pos == std::string::npos)
+            statusCode = 400;
+        else {
+            std::string body = _bufferTable[clientSocketFd].substr(_bufferTable[clientSocketFd].find(boundary) + boundary.size() + 2, pos - _bufferTable[clientSocketFd].find(boundary) - boundary.size() - 2);
+            std::string path = server.root + location.path;
+            if (isDirectory(path.substr(1))) {
+                if (path.back() != '/')
+                    path += '/';
+                std::string filename = path + body.substr(body.find("filename=\"") + 10, body.find("\"", body.find("filename=\"") + 10) - body.find("filename=\"") - 10);
+                std::ofstream file(filename.substr(1), std::ios::binary);
+                // body에서 boundary 데이터만 추출
+                body = body.substr(body.find(boundary) + boundary.size() + 2);
+                // body에서 바이너리 데이터만 추출
+                body = body.substr(body.find("\r\n\r\n") + 4);
+                // body에서 마지막 엔터 제거
+                body = body.substr(0, body.size() - 2);
+                std::cout << "---------- File Content ----------" << std::endl;
+                std::cout << body << std::endl;
+                std::cout << "----------------------------------" << std::endl;
+                file.write(body.c_str(), body.size());
+                file.close();
+            }
+            else
+                statusCode = 404;
+        }
+    }
+    else
+        statusCode = 400;
+    HttpResponse httpResponse(uri, httpRequest, statusCode);
+    std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
+    std::cout << httpResponse.response;
+    std::cout << std::endl << "=============================" << std::endl << std::endl;
+    send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+}
 
-
-
-
-
-
-
-
-
+void Service::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd) {
+    // DELETE 요청 처리
+    // uri가 존재하는지 확인
+    if (access(uri.substr(1).c_str(), F_OK) == -1)
+        statusCode = 404;
+    else
+        remove(uri.substr(1).c_str());
+    HttpResponse httpResponse(uri, httpRequest, statusCode);
+    std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
+    std::cout << httpResponse.response;
+    std::cout << std::endl << "=============================" << std::endl << std::endl;
+    send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+}

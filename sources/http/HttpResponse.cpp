@@ -131,6 +131,7 @@ HttpResponse::HttpResponse(const std::string& uri, const HttpRequest &request, i
         headers["Content-Type"] = "image/x-icon";
     else
         headers["Content-Type"] = "text/plain";
+    headers["Connection"] = "keep-alive";
 
     for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); it++)
         response += it->first + ": " + it->second + "\r\n";

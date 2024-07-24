@@ -38,6 +38,11 @@ class Service {
         void setupSockets();
         void eventLoop();
         bool handleEvent(int clientSocketFd);
+        void getMethod(std::string& uri, 
+                        HttpRequest& httpRequest, const Location& location, int& statusCode, int& clientSocketFd);
+        void postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd);
+        void deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd);
+
     
 		std::map<int, std::string> _bufferTable;
         std::string _resourcesPath;

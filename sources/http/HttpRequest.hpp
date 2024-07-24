@@ -1,6 +1,6 @@
 #ifndef HTTP_REQUEST_HPP
 # define HTTP_REQUEST_HPP
-# include "Http.hpp"
+# include "../http/Http.hpp"
 
 enum EHttpMethod
 {
@@ -23,6 +23,7 @@ class HttpRequest : public Http
 
 		bool parse(const std::string& s);
 		std::string getValue(const std::string& key);
+		std::string parseReferer(const std::string& s);
 };
 
 #endif
