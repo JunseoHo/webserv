@@ -158,10 +158,23 @@ bool Service::handleEvent(int clientSocketFd) {
 	    if (!(location.acceptedHttpMethods & httpRequest.method)) {
             statusCode = 405;
 	    }
+        std::cout << "server.root: " << server.root << std::endl;
+        std::cout << "httpRequest.referer: " << httpRequest.referer << std::endl;
+		std::string uri = server.root + httpRequest.referer;
+		// std::cout << "URI: " << uri << std::endl;
 
-		std::string uri = server.root + httpRequest.target;
+        uri += httpRequest.target;
+        // std::cout << uri.length() << std::endl;
+		// std::cout << "URI: " << uri.c_str() << std::endl;
+        // std::cout << "server.root: " << server.root << server.root.length() << std::endl;
+        // std::cout << "httpRequest.referer: " << httpRequest.referer << httpRequest.referer.length() << std::endl;
+        // std::cout << "httpRequest.target: " << httpRequest.target << httpRequest.target.length() << std::endl;
+
+        // std::cout << "server.root: " << server.root << std::endl;
+        // std::cout << "httpRequest.referer: " << httpRequest.referer << std::endl;
+        // std::cout << "httpRequest.target: " << httpRequest.target << std::endl;
+        // std::cout << "result: " << server.root + httpRequest.referer + httpRequest.target << std::endl;
         
-		std::cout << "URI: " << uri + httpRequest.referer << std::endl;
         // uri가 존재하는지 확인
         if (access(uri.substr(1).c_str(), F_OK) == -1) {
             statusCode = 404;

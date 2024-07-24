@@ -24,7 +24,7 @@ HttpRequest& HttpRequest::operator= (const HttpRequest& rhs) {
     return *this;
 }
 
-std::string HttpRequest::parseReferer(const std::string& content) {
+std::string HttpRequest::parseReferer(const std::string content) {
     std::string refererHeader = "Referer: ";
     std::string refererPath = "";
 
@@ -42,7 +42,6 @@ std::string HttpRequest::parseReferer(const std::string& content) {
             refererPath = refererUrl.substr(pathPos);
         }
     }
-
     return refererPath;
 }
 
