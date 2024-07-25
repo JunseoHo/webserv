@@ -136,6 +136,8 @@ HttpResponse::HttpResponse(const std::string& uri, const HttpRequest &request, i
 
     response = version + " " + std::to_string(statusCode) + " " + message + "\r\n";
 
+    std::cout << "URL RESPOJSE:" << uri << std::endl;
+
 	if (uri.back() == '/')
 		body = listDirectory(uri);
     else if (statusCode != 201)

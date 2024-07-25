@@ -63,7 +63,7 @@ void Service::setupSockets() {
 
 void Service::eventLoop() {
     while (true) {
-        std::cout << "Polling..." << std::endl;
+        // std::cout << "Polling..." << std::endl;
         poll(_pollFds.data(), _pollFds.size(), -1); 
         for (int i = 0; i < _pollFds.size(); i++) {
             if (_pollFds[i].revents & POLLIN) {
