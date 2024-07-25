@@ -161,7 +161,6 @@ bool Service::handleEvent(int clientSocketFd) {
 
 		std::string uri = server.root + httpRequest.target;
         
-		std::cout << "URI: " << uri + httpRequest.referer << std::endl;
         // uri가 존재하는지 확인
         if (access(uri.substr(1).c_str(), F_OK) == -1) {
             statusCode = 404;
