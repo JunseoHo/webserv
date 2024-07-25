@@ -26,7 +26,6 @@ class Http
 		std::map<std::string, std::string> headers;
 		std::string body;
 		std::string version;
-		std::string referer;
 };
 
 #endif

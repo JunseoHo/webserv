@@ -23,7 +23,6 @@ class HttpRequest : public Http
 
 		bool parse(const std::string& s);
 		std::string getValue(const std::string& key);
-		std::string parseReferer(const std::string s);
 };
 
 #endif
