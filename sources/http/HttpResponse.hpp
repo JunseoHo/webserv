@@ -2,6 +2,14 @@
 # define HTTP_RESPONSE_HPP
 # include "Http.hpp"
 # include "../config/Config.hpp"
+# include <string>
+# include <unistd.h>
+# include <iostream>
+# include <dirent.h>
+# include <sys/types.h>
+# include <cerrno>
+# include <cstring>
+# include "../utils/utils.h"
 
 class HttpResponse : public Http
 {

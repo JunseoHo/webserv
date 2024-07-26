@@ -19,12 +19,12 @@
 # include "../http/HttpRequest.hpp"
 # include "../http/HttpResponse.hpp"
 # include "../config/Config.hpp"
+# include "../utils/utils.h"
 # define BUFFER_SIZE 1024
-# define ROOT "/Users/gimgibeom/webserv/resources"
 
 class Service {
     public:
-        Service(const Config &config, const std::string& resourcesPath);
+        Service(const Config &config);
         void Start();
         ~Service();
         Config config;
@@ -39,13 +39,12 @@ class Service {
         void eventLoop();
         bool handleEvent(int clientSocketFd);
         void getMethod(std::string& uri, 
-                        HttpRequest& httpRequest, const Location& location, int& statusCode, int& clientSocketFd);
+                        HttpRequest& httpRequest, const Location& location, int& statusCode, int& clientSocketFd, Server& server);
         void postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd);
         void deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd);
 
     
 		std::map<int, std::string> _bufferTable;
-        std::string _resourcesPath;
         std::vector<pollfd> _pollFds;
         std::vector<int> _serverSocketFds;
         static const int _backLog;

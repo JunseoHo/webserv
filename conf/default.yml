@@ -18,14 +18,19 @@ server:
     autoindex: off
   location: /banana
     allow_methods: GET
+    index: banana.html
     autoindex: on
   location: /upload
-    allow_methods: GET POST
-    index: upload.html
+    allow_methods: GET POST DELETE
+    index: upload2.html
     autoindex: off
   location: /delete
     allow_methods: GET POST DELETE
     index: delete.html
+    autoindex: off
+  location: /cgi-bin
+    allow_methods: GET
+    index: cgi-bin.html
     autoindex: off
 
 server:
@@ -48,12 +53,17 @@ server:
     autoindex: off
   location: /banana
     allow_methods: GET
-    autoindex: on
+    index: banana.html
+    autoindex: off
   location: /upload
-    allow_methods: GET POST
-    index: upload.html
+    allow_methods: GET POST DELETE
+    index: upload2.html
     autoindex: off
   location: /delete
     allow_methods: GET POST DELETE
     index: delete.html
+    autoindex: off
+  location: /cgi-bin
+    allow_methods: GET
+    index: cgi-bin.html
     autoindex: off

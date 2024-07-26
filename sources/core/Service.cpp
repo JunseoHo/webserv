@@ -10,7 +10,6 @@ Service::Service(const Service& obj) {
 
 Service& Service::operator= (const Service& rhs) {
     if (this != &rhs) {
-        _resourcesPath = rhs._resourcesPath;
         config = rhs.config;
         _pollFds = rhs._pollFds;
         _serverSocketFds = rhs._serverSocketFds;
@@ -18,8 +17,8 @@ Service& Service::operator= (const Service& rhs) {
     return *this;
 }
 
-Service::Service(const Config &config, const std::string& root)
-    : _resourcesPath(root), config(config) {
+Service::Service(const Config &config)
+    :config(config) {
     _pollFds.resize(config.getPorts().size());
 }
 
@@ -30,7 +29,13 @@ void Service::Start() {
 
 void Service::setNonBlocking(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    if (flags == -1) {
+        std::cerr << "fcntl F_GETFL failed with error: " << strerror(errno) << std::endl;
+        return;
+    }
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        std::cerr << "fcntl F_SETFL failed with error: " << strerror(errno) << std::endl;
+    }
 }
 
 void Service::setupSockets() {
@@ -39,14 +44,34 @@ void Service::setupSockets() {
     for (int i = 0; i < ports.size(); i++) {
         int port = ports[i];
         int serverSocketFd = socket(AF_INET, SOCK_STREAM, 0);
+        
+        int opt = 1;
+        if (setsockopt(serverSocketFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+            std::cerr << "setsockopt failed with error: " << strerror(errno) << std::endl;
+            close(serverSocketFd);
+            continue;
+        }
 
         sockaddr_in serverAddress;
         serverAddress.sin_family = AF_INET;
         serverAddress.sin_port = htons(port);
         serverAddress.sin_addr.s_addr = INADDR_ANY;
 
-        bind(serverSocketFd, (struct sockaddr*)&serverAddress, sizeof(serverAddress));
-        listen(serverSocketFd, _backLog);
+
+        int result = bind(serverSocketFd, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+        if (result == -1)
+        {
+            std::cerr << "Bind failed with error: " << strerror(errno) << std::endl;
+            close(serverSocketFd);
+            continue;
+        }
+        result = listen(serverSocketFd, _backLog);
+        if (result == -1)
+        {
+            std::cerr << "Listen failed with error: " << strerror(errno) << std::endl;
+            close(serverSocketFd);
+            continue;
+        }
 
         setNonBlocking(serverSocketFd);
         _pollFds[index].fd = serverSocketFd;
@@ -63,8 +88,13 @@ void Service::setupSockets() {
 
 void Service::eventLoop() {
     while (true) {
-        // std::cout << "Polling..." << std::endl;
-        poll(_pollFds.data(), _pollFds.size(), -1); 
+        std::cout << "Polling..." << std::endl;
+        int pollResult = poll(_pollFds.data(), _pollFds.size(), -1);
+        if (pollResult == -1)
+        {
+            std::cerr << "Poll failed with error: " << strerror(errno) << std::endl;
+            continue;
+        }
         for (int i = 0; i < _pollFds.size(); i++) {
             if (_pollFds[i].revents & POLLIN) {
                 if (std::find(_serverSocketFds.begin(), _serverSocketFds.end(), _pollFds[i].fd) != _serverSocketFds.end()) {  // 서버 소켓인 경우
@@ -93,15 +123,6 @@ void Service::eventLoop() {
             }
         }
     }
-}
-
-bool isDirectory(const std::string& path) {
-    struct stat s;
-    if (stat(path.c_str(), &s) == 0) {
-        if (s.st_mode & S_IFDIR)
-            return true;
-    }
-    return false;
 }
 
 // request body가 모두 받아졌는지 확인
@@ -177,7 +198,7 @@ bool Service::handleEvent(int clientSocketFd) {
             return true;
         }
         if (httpRequest.method == GET)
-            getMethod(uri, httpRequest, location, statusCode, clientSocketFd);
+            getMethod(uri, httpRequest, location, statusCode, clientSocketFd, server);
         else if (httpRequest.method == POST)
             postMethod(uri, httpRequest, server, location, clientSocketFd);
         else if (httpRequest.method == DELETE)
@@ -193,17 +214,54 @@ void Service::getMethod(std::string& uri,
                         HttpRequest& httpRequest,
                         const Location& location,
                         int& statusCode,
-                        int& clientSocketFd) {
-    // uri가 디렉토리인 경우 index 파일로 리다이렉트
+                        int& clientSocketFd,
+                        Server& server) {
+    /*
+        1. uri가 디렉토리인지 확인
+        1-1. 디렉토리인 경우
+            uri가 /로 끝나지 않는 경우 404
+            index 존재
+            autoindex가 true인 경우
+        1-2. 디렉토리가 아닌 경우
+
+    */
     if (isDirectory(uri.substr(1))) {
         if (uri.back() != '/')
-            uri += '/';
-		if (!location.index.empty())
-			 uri += location.index;
+            statusCode = 404;
+        else {
+            if (!location.index.empty())
+            {
+                if (access((uri.substr(1) + location.index).c_str(), F_OK) == 0)
+                    uri += location.index;
+                else
+                    statusCode = 404;
+            } else if (location.autoIndex) {
+                std::string index = getIndex(uri.substr(1));
+                if (index.empty())
+                    statusCode = 404;
+                else
+                    uri += index;
+            }
+        }
+    } else {
+        if (uri.back() == '/')
+            statusCode = 404;
     }
 
-	if (uri.back() == '/' && !location.autoIndex)
-		statusCode = 403;
+    if (statusCode != 200)
+    {
+        uri = server.root + "/" + server.errorPage;
+        HttpResponse httpResponse(uri, httpRequest, statusCode);
+        std::cout << std::endl
+                  << "========== Response =========" << std::endl
+                  << std::endl;
+        std::cout << httpResponse.response;
+        std::cout << std::endl
+                  << "=============================" << std::endl
+                  << std::endl;
+        send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+        return;
+    }
 
     HttpResponse httpResponse(uri, httpRequest, statusCode);
     std::cout << std::endl << "========== Response =========" << std::endl << std::endl;

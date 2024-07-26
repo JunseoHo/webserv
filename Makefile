@@ -7,6 +7,7 @@ SRC = sources/core/main.cpp\
 	sources/http/HttpRequest.cpp\
 	sources/config/Config.cpp\
 	sources/http/HttpResponse.cpp\
+	sources/utils/utils.cpp\
 
 INC = sources/core/
 

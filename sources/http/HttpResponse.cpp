@@ -1,11 +1,4 @@
 #include "HttpResponse.hpp"
-#include <string>
-#include <unistd.h>
-#include <iostream>
-#include <dirent.h>
-#include <sys/types.h>
-#include <cerrno>
-#include <cstring>
 
 HttpResponse::HttpResponse()
 {
@@ -49,10 +42,7 @@ std::string listDirectory(const std::string& path) {
     return file_list;
 }
 
-bool endsWith(const std::string& str, const std::string& suffix) {
-    if (str.length() < suffix.length()) return false;
-    return str.substr(str.length() - suffix.length()) == suffix;
-}
+
 
 HttpResponse::HttpResponse(const std::string& uri, const HttpRequest &request, int statusCode)
 {
@@ -138,8 +128,11 @@ HttpResponse::HttpResponse(const std::string& uri, const HttpRequest &request, i
 
     std::cout << "URL RESPOJSE:" << uri << std::endl;
 
-	if (uri.back() == '/')
+	if (uri.back() == '/') {
+        if (isDirectory(uri.substr(1)))
 		body = listDirectory(uri);
+        
+    }
     else if (statusCode != 201)
         body = readFileToString(uri);
     

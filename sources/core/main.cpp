@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
 	{
 		Config config(configPath);
 		// config.print();
-		Service service(config, ROOT);
+		Service service(config);
 		service.Start();
 	}
 	catch (std::exception &e)
