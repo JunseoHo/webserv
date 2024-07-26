@@ -1,6 +1,7 @@
 #include "HttpRequest.hpp"
 #include <string>
 #include <map>
+#include <iostream>
 
 HttpRequest::HttpRequest() : Http() {
 }
@@ -37,14 +38,22 @@ bool HttpRequest::parse(const std::string& s) {
         return false;
     target = startLine.substr(startLine.find(" ") + 1, startLine.find(" ", startLine.find(" ") + 1) - startLine.find(" ") - 1);
     version = startLine.substr(startLine.find(" ", startLine.find(" ") + 1) + 1);
-    std::string fullHeader = s.substr(s.find("\r\n") + 2, s.find("\r\n\r\n") - s.find("\r\n") - 2);
-    while (fullHeader.find("\r\n") != std::string::npos)
-    {
-        std::string header = fullHeader.substr(0, fullHeader.find("\r\n"));
-        headers[header.substr(0, header.find(":"))] = header.substr(header.find(":") + 2);
-        fullHeader = fullHeader.substr(fullHeader.find("\r\n") + 2);
+    
+    // 헤더와 바디 분리
+    std::string headerAndBody = s.substr(s.find("\r\n") + 2);
+    std::string header = headerAndBody.substr(0, headerAndBody.find("\r\n\r\n") + 2);
+    std::string body = headerAndBody.substr(headerAndBody.find("\r\n\r\n") + 4);
+    this->body = body;
+
+    // 헤더 파싱
+    size_t pos = 0;
+    while ((pos = header.find("\r\n")) != std::string::npos) {
+        std::string line = header.substr(0, pos);
+        header.erase(0, pos + 2);
+        std::string key = line.substr(0, line.find(":"));
+        std::string value = line.substr(line.find(":") + 2);
+        this->headers[key] = value;
     }
-    body = s.substr(s.find("\r\n\r\n") + 4);
 
     if (target == "" || version == "")
         return false;

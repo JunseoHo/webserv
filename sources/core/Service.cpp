@@ -212,6 +212,55 @@ void Service::getMethod(std::string& uri,
     send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
 }
 
+std::vector<std::string> split(const std::string& str, const std::string& delimiter) {
+    std::vector<std::string> tokens;
+    size_t start = 0, end;
+    while ((end = str.find(delimiter, start)) != std::string::npos) {
+        tokens.push_back(str.substr(start, end - start));
+        start = end + delimiter.length();
+    }
+    tokens.push_back(str.substr(start));
+    return tokens;
+}
+
+void parse_multipart_data(const std::string& path, const std::string& body, const std::string& boundary) {
+    std::vector<std::string> parts = split(body, boundary);
+    for (std::vector<std::string>::iterator it = parts.begin(); it != parts.end(); ++it) {
+        std::string part = *it;
+        if (part.empty() || part == "--\r\n" || part == "--") {
+            continue;
+        }
+
+        // 헤더와 바디 추출
+        size_t header_end_pos = part.find("\r\n\r\n");
+        if (header_end_pos == std::string::npos) {
+            continue;
+        }
+        std::string headers = part.substr(0, header_end_pos);
+        std::string body = part.substr(header_end_pos + 4);
+
+        // 파일이름 추출
+        size_t cd_pos = headers.find("Content-Disposition:");
+        if (cd_pos == std::string::npos) {
+            continue;
+        }
+
+        std::string content_disposition = headers.substr(cd_pos, headers.find("\r\n", cd_pos) - cd_pos);
+        size_t filename_pos = content_disposition.find("filename=");
+        if (filename_pos != std::string::npos) {
+            std::string filename = content_disposition.substr(filename_pos + 10);
+            filename = filename.substr(0, filename.find("\""));
+
+            // Save file
+            std::ofstream outfile(path + filename, std::ios::binary);
+            outfile.write(body.data(), body.size());
+            outfile.close();
+
+            std::cout << "Saved file: " << filename << std::endl;
+        }
+    }
+}
+
 void Service::postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd) {
     int statusCode = 201;
     // POST 요청 처리
@@ -219,36 +268,19 @@ void Service::postMethod(std::string& uri, HttpRequest& httpRequest, const Serve
     if (!isDirectory(uri.substr(1)))
         statusCode = 404;
     std::string contentType = httpRequest.headers["Content-Type"];
-    size_t boundaryPos = contentType.find("boundary=");
-    if (boundaryPos != std::string::npos) {
-        std::string boundary = contentType.substr(boundaryPos + 9);
-        std::string boundaryEnd = "--" + boundary + "--";
-        size_t pos = _bufferTable[clientSocketFd].find(boundaryEnd);
-        if (pos == std::string::npos)
-            statusCode = 400;
-        else {
-            std::string body = _bufferTable[clientSocketFd].substr(_bufferTable[clientSocketFd].find(boundary) + boundary.size() + 2, pos - _bufferTable[clientSocketFd].find(boundary) - boundary.size() - 2);
-            std::string path = server.root + location.path;
-            if (isDirectory(path.substr(1))) {
-                if (path.back() != '/')
-                    path += '/';
-                std::string filename = path + body.substr(body.find("filename=\"") + 10, body.find("\"", body.find("filename=\"") + 10) - body.find("filename=\"") - 10);
-                std::ofstream file(filename.substr(1), std::ios::binary);
-                // body에서 boundary 데이터만 추출
-                body = body.substr(body.find(boundary) + boundary.size() + 2);
-                // body에서 바이너리 데이터만 추출
-                body = body.substr(body.find("\r\n\r\n") + 4);
-                // body에서 마지막 엔터 제거
-                body = body.substr(0, body.size() - 2);
-                std::cout << "---------- File Content ----------" << std::endl;
-                std::cout << body << std::endl;
-                std::cout << "----------------------------------" << std::endl;
-                file.write(body.c_str(), body.size());
-                file.close();
-            }
-            else
-                statusCode = 404;
+    std::cout << contentType << std::endl;
+    if (contentType.find("multipart/form-data") != std::string::npos) {
+        std::string boundary = "--" + contentType.substr(contentType.find("boundary=") + 9);
+        std::string path = server.root + location.path;
+        if (isDirectory(path.substr(1)))
+        {
+            std::cout << "Multipart data received" << std::endl;
+            if (path.back() != '/')
+                path += '/';
+            parse_multipart_data(path.substr(1), httpRequest.body, boundary);
         }
+        else
+            statusCode = 404;
     }
     else
         statusCode = 400;
