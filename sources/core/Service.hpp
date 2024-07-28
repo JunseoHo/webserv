@@ -37,9 +37,9 @@ class Service {
         void setNonBlocking(int fd);
         void setupSockets();
         void eventLoop();
-        bool handleEvent(int clientSocketFd);
+        void handleEvent(int clientSocketFd);
         void getMethod(std::string& uri, 
-                        HttpRequest& httpRequest, const Location& location, int& statusCode, int& clientSocketFd, Server& server);
+                        HttpRequest& httpRequest, const Location& location, int& statusCode, int& clientSocketFd, Server& server, std::string& queryString);
         void postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd);
         void deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd);
 

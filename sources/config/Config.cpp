@@ -128,7 +128,7 @@ std::vector<int> Config::getPorts() const {
 	return ports;
 }
 
-Server& Config::selectServer(HttpRequest& httpRequest, int port) const {
+Server& Config::selectServer(std::string& host, int port) const {
 	Server* defaultServer = NULL;
 	for (std::list<Server>::const_iterator it = _servers.begin(); it != _servers.end(); ++it)
 	{
@@ -136,8 +136,8 @@ Server& Config::selectServer(HttpRequest& httpRequest, int port) const {
 		{
 			if (defaultServer == NULL)
 				defaultServer = const_cast<Server*>(&(*it));
-			if (it->serverName == httpRequest.getValue("Host"))
-				return const_cast<Server &>(*it);	
+			if (it->serverName == host)
+				return const_cast<Server &>(*it);
 		}
 	}
 	return const_cast<Server &>(*defaultServer);

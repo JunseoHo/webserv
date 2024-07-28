@@ -38,7 +38,7 @@ class Config
 		~Config();
 
 
-		Server& selectServer(HttpRequest& httpRequest, int port) const;
+		Server& selectServer(std::string& host, int port) const;
 		const Location& findLocation(const Server& server, const std::string& uri) const;
 		void	print(void) const;
 
