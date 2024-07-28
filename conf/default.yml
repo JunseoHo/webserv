@@ -10,8 +10,7 @@ server:
     autoindex: on
   location: /guide
     allow_methods: GET
-    index: html_guide.html
-    autoindex: on
+    autoindex: off
   location: /exam
     allow_methods: GET
     index: html_exam.html

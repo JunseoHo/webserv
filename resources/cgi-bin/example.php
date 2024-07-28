@@ -1,14 +1,14 @@
-// example.php
 <?php
     // CGI 환경에서 입력된 데이터를 읽어옴
-    $input = file_get_contents("php://stdin");
-    parse_str($input, $params);
-    
-    // 입력된 이름을 변수로부터 읽어옴
-    $name = $params['name'];
+    $queryString = $_SERVER["QUERY_STRING"];
+    parse_str($queryString, $params);
+    $name = $params["name"] ?? "이름 없음";
+
+    // 적절한 HTTP 헤더 설정
+    header("Content-type: text/html; charset=utf-8");
     
     // HTML 형식으로 결과 출력
-    echo "Content-type:text/html\r\n\r\n";
+    echo "<!DOCTYPE html>\n";
     echo "<html>\n";
     echo "<head>\n";
     echo "<title>PHP CGI Example Result</title>\n";

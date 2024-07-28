@@ -16,8 +16,11 @@ class HttpResponse : public Http
 	public:
 		HttpResponse();
 		HttpResponse(const std::string& uri, const HttpRequest &requset, int statusCode);
+		HttpResponse(const std::string& uri, const HttpRequest &requset, int statusCode, const std::string& queryString);
 		HttpResponse(const HttpResponse& obj) {};
 		~HttpResponse() {};
+
+		void setResponse(const std::string& uri, const HttpRequest &requset, int statusCode, const std::string& queryString);
 
 		HttpResponse& operator= (HttpResponse& rhs) { return *this; }
 

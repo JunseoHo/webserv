@@ -111,11 +111,8 @@ void Service::eventLoop() {
                     _bufferTable[clientSocketFd] = "";
                 }
                 else {  // 클라이언트 소켓인 경우
-                    if (handleEvent(_pollFds[i].fd))
-					{
-                        _bufferTable.erase(_pollFds[i].fd);
-                        _clientSocketToPort.erase(_pollFds[i].fd); // 매핑 제거
-                    	close(_pollFds[i].fd);
+                    handleEvent(_pollFds[i].fd);
+					if (_bufferTable.find(_pollFds[i].fd) == _bufferTable.end()) {
 	                    _pollFds.erase(_pollFds.begin() + i);
 	                    --i;
 					}
@@ -141,73 +138,139 @@ bool isRequestBodyComplete(const std::string& buffer) {
     return buffer.size() >= pos + 4 + length;
 }
 
-bool Service::handleEvent(int clientSocketFd) {
+size_t extractContentLength(const std::string& header)
+{
+    size_t contentLengthPos = header.find("Content-Length: ");
+    if (contentLengthPos == std::string::npos)
+        return 0;
+    size_t endOfContentLength = header.find("\r\n", contentLengthPos);
+    std::string contentLength = header.substr(contentLengthPos + 16, endOfContentLength - contentLengthPos - 16);
+    return std::stoul(contentLength);
+}
+
+std::string extractHost(const std::string& header)
+{
+    size_t hostStartPos = header.find("Host: ") + 6;
+    size_t hostEndPos = header.find("\r\n", hostStartPos);
+    return header.substr(hostStartPos, hostEndPos - hostStartPos);
+}
+
+void Service::handleEvent(int clientSocketFd) {
 	char buffer[BUFFER_SIZE];
     int size = recv(clientSocketFd, buffer, BUFFER_SIZE - 1, 0);    // 클라이언트 소켓으로부터 Http 리퀘스트 내용 읽기
-	_bufferTable[clientSocketFd] += std::string(buffer, size);  // 바이너리 파일의 경우 null 문자가 있을 수 있으므로 size만큼만 추가
-    // 헤더가 모두 받아졌는지 확인
-
-	if (isRequestBodyComplete(_bufferTable[clientSocketFd]))    // 리퀘스트의 헤더와 바디가 모두 받아졌는지 확인
-	{
-		std::cout << std::endl << "========== Request ==========" << std::endl << std::endl;
-	    std::cout << _bufferTable[clientSocketFd];
-	    std::cout << std::endl << "=============================" << std::endl << std::endl;
-
-	    HttpRequest httpRequest;
-	    httpRequest.parse(_bufferTable[clientSocketFd]);
-
-	    // 요청이 들어온 포트 번호를 가져옴
-	    int port = _clientSocketToPort[clientSocketFd];
-	    Server server = config.selectServer(httpRequest, port);
-
-		std::cout << "Selected server name: " << server.serverName << std::endl;
-
-        int statusCode = 200;
-
-	    // server clientMaxBodySize 가 0이 아닌 경우, body size 체크, 초과시 413
-	    if (server.clientMaxBodySize != 0 && httpRequest.body.size() > server.clientMaxBodySize) {
-            statusCode = 413;
-	    }
-
-	    Location location = config.findLocation(server, httpRequest.target);
-
-		std::cout << "Selected location path: " << location.path << std::endl;
-
-	    // method가 허용되지 않으면 405
-        std::cout << "Accepted HTTP Methods: " << location.acceptedHttpMethods << std::endl;
-        std::cout << "Request Method: " << httpRequest.method << std::endl;
-	    if (!(location.acceptedHttpMethods & httpRequest.method)) {
-            statusCode = 405;
-	    }
-
-		std::string uri = server.root + httpRequest.target;
-        
-        // uri가 존재하는지 확인
-        if (access(uri.substr(1).c_str(), F_OK) == -1) {
-            statusCode = 404;
-        }
-
-        if (statusCode != 200)
-        {
-            uri = server.root + "/" + server.errorPage;
-            HttpResponse httpResponse(uri, httpRequest, statusCode);
-            std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
-            std::cout << httpResponse.response;
-            std::cout << std::endl << "=============================" << std::endl << std::endl;
-            send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-            return true;
-        }
-        if (httpRequest.method == GET)
-            getMethod(uri, httpRequest, location, statusCode, clientSocketFd, server);
-        else if (httpRequest.method == POST)
-            postMethod(uri, httpRequest, server, location, clientSocketFd);
-        else if (httpRequest.method == DELETE)
-            deleteMethod(uri, httpRequest, statusCode, clientSocketFd);
+    if (size <= 0)
+    {
+        if (size == 0)
+            std::cout << "client disconnected\n";
         else
-            statusCode = 405;
-		return true;
-	}
-	return false;
+            std::cerr << "recv failed\n";
+        close(clientSocketFd);
+        _bufferTable.erase(clientSocketFd);
+        _clientSocketToPort.erase(clientSocketFd); // 매핑 제거
+        return ;
+    }
+    // buffer에 읽은 내용 추가
+	_bufferTable[clientSocketFd] += std::string(buffer, size);  // 바이너리 파일의 경우 null 문자가 있을 수 있으므로 size만큼만 추가
+
+    // 헤더가 모두 받아졌는지 확인
+    size_t headerEndPos = _bufferTable[clientSocketFd].find("\r\n\r\n");
+    if (headerEndPos == std::string::npos)
+        return ;
+
+    // 포트 번호 추출
+    int port = _clientSocketToPort[clientSocketFd];
+    // 헤더에서 host 추출
+    std::string host = extractHost(_bufferTable[clientSocketFd]);
+    Server server = config.selectServer(host, port);
+
+    std::cout << "Selected server name: " << server.serverName << std::endl;
+
+    // 헤더에서 content-length 추출
+    size_t contentLength = extractContentLength(_bufferTable[clientSocketFd]);
+    size_t totalLength = headerEndPos + 4 + contentLength;
+
+    // clientMaxBodySize가 0이 아닌 경우, body size 체크, 초과시 413
+    if (server.clientMaxBodySize != 0 && contentLength > server.clientMaxBodySize)
+    {
+        // 413 error
+        HttpRequest httpRequest;
+        httpRequest.parse(_bufferTable[clientSocketFd].substr(0, headerEndPos));
+        HttpResponse httpResponse(server.root + "/" + server.errorPage, httpRequest, 413);
+        send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+        // body가 큰 경우 client를 차단
+        close(clientSocketFd);
+        _bufferTable.erase(clientSocketFd);
+        _clientSocketToPort.erase(clientSocketFd);
+        return ;
+    }
+
+    // 헤더와 바디가 모두 받아졌는지 확인
+    if (totalLength > _bufferTable[clientSocketFd].size())
+        return ;
+
+    std::cout << std::endl << "========== Request ==========" << std::endl << std::endl;
+    std::cout << _bufferTable[clientSocketFd].substr(0, totalLength);
+    std::cout << std::endl << "=============================" << std::endl << std::endl;
+
+    // 리퀘스트 하나를 분리하여 파싱
+    HttpRequest httpRequest;
+    httpRequest.parse(_bufferTable[clientSocketFd].substr(0, totalLength));
+    // buffer에서 처리한 리퀘스트 제거
+    if (totalLength == _bufferTable[clientSocketFd].size())
+        _bufferTable.erase(clientSocketFd);
+    else // 다음 리퀘스트를 위해 buffer 재설정
+        _bufferTable[clientSocketFd] = _bufferTable[clientSocketFd].substr(totalLength);
+
+    int statusCode = 200;
+
+    Location location = config.findLocation(server, httpRequest.target);
+
+    std::cout << "Selected location path: " << location.path << std::endl;
+
+    // method가 허용되지 않으면 405
+    std::cout << "Accepted HTTP Methods: " << location.acceptedHttpMethods << std::endl;
+    std::cout << "Request Method: " << httpRequest.method << std::endl;
+    if (!(location.acceptedHttpMethods & httpRequest.method)) {
+        statusCode = 405;
+    }
+
+    std::string uri = server.root + httpRequest.target;
+    
+    // 쿼리문자열 분리
+    std::string queryString = "";
+    size_t pos = uri.find("?");
+    if (pos != std::string::npos) {
+        queryString = uri.substr(pos + 1);
+        uri = uri.substr(0, pos);
+    }
+
+    // uri가 존재하는지 확인
+    if (access(uri.substr(1).c_str(), F_OK) == -1) {
+        statusCode = 404;
+    }
+
+    if (statusCode != 200)
+    {
+        uri = server.root + "/" + server.errorPage;
+        HttpResponse httpResponse(uri, httpRequest, statusCode);
+        std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
+        std::cout << httpResponse.response;
+        std::cout << std::endl << "=============================" << std::endl << std::endl;
+        send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+        close(clientSocketFd);
+        _clientSocketToPort.erase(clientSocketFd);
+        return ;
+    }
+    if (httpRequest.method == GET)
+        getMethod(uri, httpRequest, location, statusCode, clientSocketFd, server, queryString);
+    else if (httpRequest.method == POST)
+        postMethod(uri, httpRequest, server, location, clientSocketFd);
+    else if (httpRequest.method == DELETE)
+        deleteMethod(uri, httpRequest, statusCode, clientSocketFd);
+    else
+        statusCode = 405;
+    close(clientSocketFd);
+    _clientSocketToPort.erase(clientSocketFd);
 }
 
 void Service::getMethod(std::string& uri,
@@ -215,15 +278,15 @@ void Service::getMethod(std::string& uri,
                         const Location& location,
                         int& statusCode,
                         int& clientSocketFd,
-                        Server& server) {
+                        Server& server,
+                        std::string& queryString) {
     /*
         1. uri가 디렉토리인지 확인
         1-1. 디렉토리인 경우
-            uri가 /로 끝나지 않는 경우 404
+            uri가 /로 끝나지 않는 경우 403
             index 존재
             autoindex가 true인 경우
         1-2. 디렉토리가 아닌 경우
-
     */
     if (isDirectory(uri.substr(1))) {
         if (uri.back() != '/')
@@ -235,12 +298,8 @@ void Service::getMethod(std::string& uri,
                     uri += location.index;
                 else
                     statusCode = 404;
-            } else if (location.autoIndex) {
-                std::string index = getIndex(uri.substr(1));
-                if (index.empty())
-                    statusCode = 404;
-                else
-                    uri += index;
+            } else if (!location.autoIndex) {
+                statusCode = 403;
             }
         }
     } else {
@@ -263,7 +322,7 @@ void Service::getMethod(std::string& uri,
         return;
     }
 
-    HttpResponse httpResponse(uri, httpRequest, statusCode);
+    HttpResponse httpResponse(uri, httpRequest, statusCode, queryString);
     std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
     std::cout << httpResponse.response;
     std::cout << std::endl << "=============================" << std::endl << std::endl;
