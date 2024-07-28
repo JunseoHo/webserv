@@ -122,36 +122,28 @@ void Service::eventLoop() {
     }
 }
 
-// request body가 모두 받아졌는지 확인
-bool isRequestBodyComplete(const std::string& buffer) {
-    size_t pos = buffer.find("\r\n\r\n");
-    // 헤더가 모두 받아졌는지 확인
-    if (pos == std::string::npos)
-        return false;
-    std::string header = buffer.substr(0, pos);
-    size_t contentLengthPos = header.find("Content-Length: ");
-    if (contentLengthPos == std::string::npos)
-        return true;
-    size_t endOfContentLength = header.find("\r\n", contentLengthPos);
-    std::string contentLength = header.substr(contentLengthPos + 16, endOfContentLength - contentLengthPos - 16);
-    int length = std::stoi(contentLength);
-    return buffer.size() >= pos + 4 + length;
-}
-
 size_t extractContentLength(const std::string& header)
 {
     size_t contentLengthPos = header.find("Content-Length: ");
     if (contentLengthPos == std::string::npos)
         return 0;
     size_t endOfContentLength = header.find("\r\n", contentLengthPos);
-    std::string contentLength = header.substr(contentLengthPos + 16, endOfContentLength - contentLengthPos - 16);
+    std::string contentLength;
+    if (endOfContentLength == std::string::npos)
+        contentLength = header.substr(contentLengthPos + 16);
+    else
+        contentLength = header.substr(contentLengthPos + 16, endOfContentLength - contentLengthPos - 16);
     return std::stoul(contentLength);
 }
 
 std::string extractHost(const std::string& header)
 {
     size_t hostStartPos = header.find("Host: ") + 6;
+    if (hostStartPos == std::string::npos)
+        return "";
     size_t hostEndPos = header.find("\r\n", hostStartPos);
+    if (hostEndPos == std::string::npos)
+        return header.substr(hostStartPos);
     return header.substr(hostStartPos, hostEndPos - hostStartPos);
 }
 
