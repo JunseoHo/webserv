@@ -139,40 +139,10 @@ void HttpResponse::setResponse(const std::string& uri, const HttpRequest &reques
 
 	if (uri.back() == '/') {
         if (isDirectory(uri.substr(1)))
-		body = listDirectory(uri);
-        
+		    body = listDirectory(uri);
     }
-    // else if (statusCode != 201)
-    // {
-    //     if (queryString != "")
-    //     {
-    //         std::string phpScriptPath = "/opt/homebrew/bin/php-cgi";
-    //         std::string queryStringEnv = "QUERY_STRING=" + queryString;
-    //         std::string uriEnv = uri.substr(1);
-    //         char *phpArgs[] = {(char*)"php-cgi", (char*)(uriEnv.c_str()), NULL};
-    //         char *envp[] = {(char*)queryStringEnv.c_str(), NULL};
-    //         int pipefd[2];
-    //         pipe(pipefd);
-    //         pid_t pid = fork();
-    //         if (pid == 0)
-    //         {
-    //             close(pipefd[0]);
-    //             dup2(pipefd[1], 1);
-    //             close(pipefd[1]);
-    //             execve(phpScriptPath.c_str(), phpArgs, envp);
-    //             exit(0);
-    //         }
-    //         close(pipefd[1]);
-    //         char buffer[1024];
-    //         int bytesRead;
-    //         while ((bytesRead = read(pipefd[0], buffer, sizeof(buffer))) > 0)
-    //             response += std::string(buffer, bytesRead);
-    //         close(pipefd[0]);
-    //         waitpid(pid, NULL, 0);
-    //         return ;
-    //     }
-    //     body = readFileToString(uri);
-    // }
+    else if (statusCode != 201)
+        body = readFileToString(uri);
     
     headers["Content-Length"] = std::to_string(body.size());
     if (statusCode == 201)

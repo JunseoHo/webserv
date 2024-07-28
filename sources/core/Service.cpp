@@ -235,6 +235,10 @@ void Service::handleEvent(int clientSocketFd) {
     }
 
     std::string uri = server.root + httpRequest.target;
+    std::string target = uri.find("?") != std::string::npos ? uri.substr(0, uri.find("?")) : uri;
+
+    if (access(target.substr(1).c_str(), F_OK) == -1)
+        statusCode = 404;
 
     if (statusCode != 200)
     {
