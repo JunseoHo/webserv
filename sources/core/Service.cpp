@@ -13,6 +13,12 @@ Service& Service::operator= (const Service& rhs) {
         config = rhs.config;
         _pollFds = rhs._pollFds;
         _serverSocketFds = rhs._serverSocketFds;
+        _serverSocketToPort = rhs._serverSocketToPort;
+        _clientSocketToPort = rhs._clientSocketToPort;
+        _bufferTable = rhs._bufferTable;
+        _cgiBufferTable = rhs._cgiBufferTable;
+        _cgiFdToClientFd = rhs._cgiFdToClientFd;
+        _clientFdToCgiFd = rhs._clientFdToCgiFd;
     }
     return *this;
 }
@@ -28,12 +34,7 @@ void Service::Start() {
 }
 
 void Service::setNonBlocking(int fd) {
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1) {
-        std::cerr << "fcntl F_GETFL failed with error: " << strerror(errno) << std::endl;
-        return;
-    }
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+    if (fcntl(fd, F_SETFL, FD_CLOEXEC | O_NONBLOCK) == -1) {
         std::cerr << "fcntl F_SETFL failed with error: " << strerror(errno) << std::endl;
     }
 }
@@ -88,7 +89,7 @@ void Service::setupSockets() {
 
 void Service::eventLoop() {
     while (true) {
-        std::cout << "Polling..." << std::endl;
+        // std::cout << "Polling..." << std::endl;
         int pollResult = poll(_pollFds.data(), _pollFds.size(), -1);
         if (pollResult == -1)
         {
@@ -109,10 +110,17 @@ void Service::eventLoop() {
                     // 클라이언트 소켓과 포트 번호 매핑 추가
                     _clientSocketToPort[clientSocketFd] = _serverSocketToPort[_pollFds[i].fd];
                     _bufferTable[clientSocketFd] = "";
-                }
-                else {  // 클라이언트 소켓인 경우
+                } else if (_cgiBufferTable.find(_pollFds[i].fd) != _cgiBufferTable.end()) {
+                    handleCgiEvent(_pollFds[i].fd, _cgiFdToClientFd[_pollFds[i].fd]);
+                    if (_cgiBufferTable.find(_pollFds[i].fd) == _cgiBufferTable.end()
+                        && _cgiFdToClientFd.find(_pollFds[i].fd) == _cgiFdToClientFd.end()) {
+                        _pollFds.erase(_pollFds.begin() + i);
+                        --i;
+                    }
+                } else {  // 클라이언트 소켓인 경우
                     handleEvent(_pollFds[i].fd);
-					if (_bufferTable.find(_pollFds[i].fd) == _bufferTable.end()) {
+					if (_bufferTable.find(_pollFds[i].fd) == _bufferTable.end()
+                        && _clientFdToCgiFd.find(_pollFds[i].fd) == _clientFdToCgiFd.end()) {
 	                    _pollFds.erase(_pollFds.begin() + i);
 	                    --i;
 					}
@@ -122,36 +130,28 @@ void Service::eventLoop() {
     }
 }
 
-// request body가 모두 받아졌는지 확인
-bool isRequestBodyComplete(const std::string& buffer) {
-    size_t pos = buffer.find("\r\n\r\n");
-    // 헤더가 모두 받아졌는지 확인
-    if (pos == std::string::npos)
-        return false;
-    std::string header = buffer.substr(0, pos);
-    size_t contentLengthPos = header.find("Content-Length: ");
-    if (contentLengthPos == std::string::npos)
-        return true;
-    size_t endOfContentLength = header.find("\r\n", contentLengthPos);
-    std::string contentLength = header.substr(contentLengthPos + 16, endOfContentLength - contentLengthPos - 16);
-    int length = std::stoi(contentLength);
-    return buffer.size() >= pos + 4 + length;
-}
-
 size_t extractContentLength(const std::string& header)
 {
     size_t contentLengthPos = header.find("Content-Length: ");
     if (contentLengthPos == std::string::npos)
         return 0;
     size_t endOfContentLength = header.find("\r\n", contentLengthPos);
-    std::string contentLength = header.substr(contentLengthPos + 16, endOfContentLength - contentLengthPos - 16);
+    std::string contentLength;
+    if (endOfContentLength == std::string::npos)
+        contentLength = header.substr(contentLengthPos + 16);
+    else
+        contentLength = header.substr(contentLengthPos + 16, endOfContentLength - contentLengthPos - 16);
     return std::stoul(contentLength);
 }
 
 std::string extractHost(const std::string& header)
 {
     size_t hostStartPos = header.find("Host: ") + 6;
+    if (hostStartPos == std::string::npos)
+        return "";
     size_t hostEndPos = header.find("\r\n", hostStartPos);
+    if (hostEndPos == std::string::npos)
+        return header.substr(hostStartPos);
     return header.substr(hostStartPos, hostEndPos - hostStartPos);
 }
 
@@ -163,7 +163,7 @@ void Service::handleEvent(int clientSocketFd) {
         if (size == 0)
             std::cout << "client disconnected\n";
         else
-            std::cerr << "recv failed\n";
+            std::cerr << "recv failed:" << strerror(errno) << "\n";
         close(clientSocketFd);
         _bufferTable.erase(clientSocketFd);
         _clientSocketToPort.erase(clientSocketFd); // 매핑 제거
@@ -235,19 +235,6 @@ void Service::handleEvent(int clientSocketFd) {
     }
 
     std::string uri = server.root + httpRequest.target;
-    
-    // 쿼리문자열 분리
-    std::string queryString = "";
-    size_t pos = uri.find("?");
-    if (pos != std::string::npos) {
-        queryString = uri.substr(pos + 1);
-        uri = uri.substr(0, pos);
-    }
-
-    // uri가 존재하는지 확인
-    if (access(uri.substr(1).c_str(), F_OK) == -1) {
-        statusCode = 404;
-    }
 
     if (statusCode != 200)
     {
@@ -261,8 +248,10 @@ void Service::handleEvent(int clientSocketFd) {
         _clientSocketToPort.erase(clientSocketFd);
         return ;
     }
-    if (httpRequest.method == GET)
-        getMethod(uri, httpRequest, location, statusCode, clientSocketFd, server, queryString);
+    if (uri.find(".php") != std::string::npos)
+        executeCGI(uri.substr(1), httpRequest.method, clientSocketFd);
+    else if (httpRequest.method == GET)
+        getMethod(uri, httpRequest, location, statusCode, clientSocketFd, server);
     else if (httpRequest.method == POST)
         postMethod(uri, httpRequest, server, location, clientSocketFd);
     else if (httpRequest.method == DELETE)
@@ -273,13 +262,102 @@ void Service::handleEvent(int clientSocketFd) {
     _clientSocketToPort.erase(clientSocketFd);
 }
 
+void Service::executeCGI(const std::string& uri, int requestMethod, int clientSocketFd)
+{
+    int cgiPipe[2];
+    if (pipe(cgiPipe) == -1)
+    {
+        std::cerr << "Failed to create pipe: " << std::strerror(errno) << '\n';
+        return;
+    }
+    setNonBlocking(cgiPipe[0]);
+    setNonBlocking(cgiPipe[1]);
+
+    pid_t pid = fork();
+    if (pid == -1)
+    {
+        std::cerr << "Failed to fork: " << std::strerror(errno) << '\n';
+        return;
+    }
+
+    if (pid == 0)
+    {
+        close(cgiPipe[0]);
+        dup2(cgiPipe[1], STDOUT_FILENO);
+        close(cgiPipe[1]);
+
+        const char* interpreter = "/opt/homebrew/bin/php-cgi";
+        std::string scriptPath = uri.substr(0, uri.find(".php") + 4);
+        std::string pathInfo = uri.substr(uri.find(".php") + 4, uri.find("?") - uri.find(".php") - 4);
+        std::string queryString = uri.substr(uri.find("?") + 1);
+        std::cerr << "Script Path: " << scriptPath << std::endl;
+        std::cerr << "Path Info: " << pathInfo << std::endl;
+        std::cerr << "Query String: " << queryString << std::endl;
+        char *args[] = { const_cast<char*>(scriptPath.c_str()), NULL };
+
+        std::vector<std::string> envStrings;
+        envStrings.push_back("SCRIPT_FILENAME=" + scriptPath);
+        envStrings.push_back("PATH_INFO=" + pathInfo);
+        envStrings.push_back("QUERY_STRING=" + queryString);
+        std::string method = requestMethod == GET ? "GET" : "POST";
+        envStrings.push_back("REQUEST_METHOD=" + method);
+        envStrings.push_back("REDIRECT_STATUS=200");
+
+        // char* 배열로 변환
+        std::vector<char*> env(envStrings.size() + 1); // +1 for NULL terminator
+        for (size_t i = 0; i < envStrings.size(); ++i) {
+            env[i] = const_cast<char*>(envStrings[i].c_str());
+        }
+        env[envStrings.size()] = NULL; // NULL terminator
+
+        execve(interpreter, args, env.data());
+        exit(1);
+    }
+    close(cgiPipe[1]);
+    pollfd pollFd;
+    pollFd.fd = cgiPipe[0];
+    pollFd.events = POLLIN;
+    pollFd.revents = 0;
+    _pollFds.push_back(pollFd);
+    _cgiBufferTable[cgiPipe[0]] = "";
+    _cgiFdToClientFd[cgiPipe[0]] = clientSocketFd;
+    _clientFdToCgiFd[clientSocketFd] = cgiPipe[0];
+}
+
+void Service::handleCgiEvent(int cgiPipeFd, int clientFd)
+{
+    char buffer[BUFFER_SIZE];
+    int size = read(cgiPipeFd, buffer, BUFFER_SIZE - 1);
+    if (size > 0) {
+        _cgiBufferTable[cgiPipeFd] += std::string(buffer, size);
+        return;
+    } else if (size == 0) {
+        std::cout << "------- CGI Response -------" << std::endl;
+        std::cout << _cgiBufferTable[cgiPipeFd];
+        std::cout << "----------------------------" << std::endl;
+        _cgiBufferTable[cgiPipeFd] = "HTTP/1.1 200 OK\n" + _cgiBufferTable[cgiPipeFd];
+        send(clientFd, _cgiBufferTable[cgiPipeFd].c_str(), _cgiBufferTable[cgiPipeFd].size(), 0);
+        close(cgiPipeFd);
+        _cgiBufferTable.erase(cgiPipeFd);
+        _cgiFdToClientFd.erase(cgiPipeFd);
+        _clientFdToCgiFd.erase(clientFd);
+    } else {
+        std::cerr << "read failed: " << strerror(errno) << '\n';
+        HttpResponse httpResponse("", HttpRequest(), 500);
+        send(clientFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+        close(cgiPipeFd);
+        _cgiBufferTable.erase(cgiPipeFd);
+        _cgiFdToClientFd.erase(cgiPipeFd);
+        _clientFdToCgiFd.erase(clientFd);
+    }
+}
+
 void Service::getMethod(std::string& uri,
                         HttpRequest& httpRequest,
                         const Location& location,
                         int& statusCode,
                         int& clientSocketFd,
-                        Server& server,
-                        std::string& queryString) {
+                        Server& server) {
     /*
         1. uri가 디렉토리인지 확인
         1-1. 디렉토리인 경우
@@ -322,7 +400,7 @@ void Service::getMethod(std::string& uri,
         return;
     }
 
-    HttpResponse httpResponse(uri, httpRequest, statusCode, queryString);
+    HttpResponse httpResponse(uri, httpRequest, statusCode);
     std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
     std::cout << httpResponse.response;
     std::cout << std::endl << "=============================" << std::endl << std::endl;
