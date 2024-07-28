@@ -1,7 +1,6 @@
-* upload 무한 풀링
+* chunk된 cgi응답을 unchunk하여 read
 
-* POST
-	바이너리 파일이 아닐 때
+* cgi응답을 따로 response class -> parse
 
 * conf 예외처리
 

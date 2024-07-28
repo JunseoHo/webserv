@@ -6,7 +6,9 @@
 class Http
 {
 	public:
-		Http() {};
+		Http() {
+			this->version = "HTTP/1.1";
+		};
 		Http(const Http& obj) {
 			this->headers = obj.headers;
 			this->body = obj.body;

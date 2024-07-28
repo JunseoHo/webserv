@@ -38,18 +38,23 @@ class Service {
         void setupSockets();
         void eventLoop();
         void handleEvent(int clientSocketFd);
+        void executeCGI(const std::string& uri, int requestMethod, int clientSocketFd);
+        void handleCgiEvent(int cgiPipeFd, int clientFd);
         void getMethod(std::string& uri, 
-                        HttpRequest& httpRequest, const Location& location, int& statusCode, int& clientSocketFd, Server& server, std::string& queryString);
+                        HttpRequest& httpRequest, const Location& location, int& statusCode, int& clientSocketFd, Server& server);
         void postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd);
         void deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd);
 
     
 		std::map<int, std::string> _bufferTable;
+        std::map<int, std::string> _cgiBufferTable;
         std::vector<pollfd> _pollFds;
         std::vector<int> _serverSocketFds;
         static const int _backLog;
 		std::map<int, int> _serverSocketToPort;
 		std::map<int, int> _clientSocketToPort;
+        std::map<int, int> _cgiFdToClientFd;
+        std::map<int, int> _clientFdToCgiFd;
 };
 
 #endif
