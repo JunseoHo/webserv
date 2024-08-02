@@ -3,6 +3,7 @@
 import cgi
 import cgitb
 import os
+import sys
 
 # Enable error reporting
 cgitb.enable()
@@ -13,9 +14,13 @@ print("Content-Type: text/html\n")
 # Create instance of FieldStorage
 form = cgi.FieldStorage()
 
+print("This is an error message.", file=sys.stderr)
+
 # Get data from fields
 username = form.getvalue('username')
 file_item = form['file']
+
+print("This is an error message.", file=sys.stderr)
 
 # Start HTML response
 print("<html><body>")
@@ -26,6 +31,8 @@ if username:
     print(f"<p>Username: {username}</p>")
 else:
     print("<p>No username provided.</p>")
+
+print("This is an error message.", file=sys.stderr)
 
 # Process file upload
 if file_item.filename:
