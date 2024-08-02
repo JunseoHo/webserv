@@ -38,7 +38,7 @@ class Service {
         void setupSockets();
         void eventLoop();
         void handleEvent(int clientSocketFd);
-        void executeCGI(const std::string& uri, int requestMethod, int clientSocketFd, Location location);
+        void executeCGI(const std::string& uri, HttpRequest &request, int clientSocketFd, Location location);
         void handleCgiEvent(int cgiPipeFd, int clientFd);
         void getMethod(std::string& uri, 
                         HttpRequest& httpRequest, const Location& location, int& statusCode, int& clientSocketFd, Server& server);

@@ -26,6 +26,7 @@ HttpRequest& HttpRequest::operator= (const HttpRequest& rhs) {
 }
 
 bool HttpRequest::parse(const std::string& s) {
+    this->full = s;
     std::string startLine = s.substr(0, s.find("\r\n"));
     std::string method = startLine.substr(0, startLine.find(" "));
     if (method == "GET")
