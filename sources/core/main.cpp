@@ -11,14 +11,11 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	std::string configPath = (argc == 1) ? DEFAULT_CONFIG_PATH : argv[1];
 
 	try
 	{
-		Config config(configPath);
+		Config config((argc == 1) ? DEFAULT_CONFIG_PATH : argv[1]);
 		std::cout << config;
-
-		std::cout << "webserv is running..." << std::endl;
 
 		Service service(config);
 		service.Start();

@@ -1,93 +1,33 @@
-#include "Service.hpp"
-const int Service::_backLog = 10;
-Service::Service() { /* DO NOTHING */ }
-Service::~Service() { /* DO NOTHING */ }
+#include "Core.hpp"
 
-Service::Service(const Service& obj) { 
-    if (this != &obj)
-        *this = obj;
-}
+Core::Core() { /* DO NOTHING */ }
+Core::Core(const Core& obj) { /* THIS IS PRIVATE */ }
+Core::~Core() { /* DO NOTHING */ }
 
-Service& Service::operator= (const Service& rhs) {
-    if (this != &rhs) {
-        config = rhs.config;
-        _pollFds = rhs._pollFds;
-        _serverSocketFds = rhs._serverSocketFds;
-        _serverSocketToPort = rhs._serverSocketToPort;
-        _clientSocketToPort = rhs._clientSocketToPort;
-        _bufferTable = rhs._bufferTable;
-        _cgiBufferTable = rhs._cgiBufferTable;
-        _cgiFdToClientFd = rhs._cgiFdToClientFd;
-        _clientFdToCgiFd = rhs._clientFdToCgiFd;
-    }
-    return *this;
-}
-
-Service::Service(const Config &config)
+Core::Core(const Config &config)
     :config(config) {
     _pollFds.resize(config.GetAllListeningPorts().size());
 }
 
-void Service::Start() {
-    setupSockets();
+Core& Core::operator= (const Core& rhs) { /* THIS IS PRIVATE */ }
+
+void Core::Start() {
+	_socketManager = SocketManager(config.GetAllListeningPorts());
+	
+	std::map<int, int> socketFdPortMap = _socketManager.GetSocketFdPortMap();
+	int i = 0;
+	for (std::map<int, int>::iterator it = socketFdPortMap.begin(); it != socketFdPortMap.end(); ++it, ++i) {
+         _pollFds[i].fd = it->first;
+        _pollFds[i].events = POLLIN;
+        _pollFds[i].revents = 0;
+		std::cout << "File descriptor " << it->first << " is polling..." << std::endl;
+    }
+
     eventLoop();
 }
 
-void Service::setNonBlocking(int fd) {
-    if (fcntl(fd, F_SETFL, FD_CLOEXEC | O_NONBLOCK) == -1) {
-        std::cerr << "fcntl F_SETFL failed with error: " << strerror(errno) << std::endl;
-    }
-}
 
-void Service::setupSockets() {
-    std::vector<int> ports = config.GetAllListeningPorts();
-    int index = 0;
-    for (int i = 0; i < ports.size(); i++) {
-        int port = ports[i];
-        int serverSocketFd = socket(AF_INET, SOCK_STREAM, 0);
-        
-        int opt = 1;
-        if (setsockopt(serverSocketFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
-            std::cerr << "setsockopt failed with error: " << strerror(errno) << std::endl;
-            close(serverSocketFd);
-            continue;
-        }
-
-        sockaddr_in serverAddress;
-        serverAddress.sin_family = AF_INET;
-        serverAddress.sin_port = htons(port);
-        serverAddress.sin_addr.s_addr = INADDR_ANY;
-
-
-        int result = bind(serverSocketFd, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
-        if (result == -1)
-        {
-            std::cerr << "Bind failed with error: " << strerror(errno) << std::endl;
-            close(serverSocketFd);
-            continue;
-        }
-        result = listen(serverSocketFd, _backLog);
-        if (result == -1)
-        {
-            std::cerr << "Listen failed with error: " << strerror(errno) << std::endl;
-            close(serverSocketFd);
-            continue;
-        }
-
-        setNonBlocking(serverSocketFd);
-        _pollFds[index].fd = serverSocketFd;
-        _pollFds[index].events = POLLIN;
-        _pollFds[index].revents = 0;
-
-        _serverSocketFds.push_back(serverSocketFd);
-        _serverSocketToPort[serverSocketFd] = port;
-        index++;
-        std::cout << "Port " << port << " is listening..." << std::endl;
-    }
-}
-
-
-void Service::eventLoop() {
+void Core::eventLoop() {
     while (true) {
         // std::cout << "Polling..." << std::endl;
         int pollResult = poll(_pollFds.data(), _pollFds.size(), -1);
