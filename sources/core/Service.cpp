@@ -237,11 +237,12 @@ void Service::handleEvent(int clientSocketFd) {
     std::string uri = server.root + httpRequest.target;
     std::string target = uri.find("?") != std::string::npos ? uri.substr(0, uri.find("?")) : uri;
 
-    if (access(target.substr(1).c_str(), F_OK) == -1)
+    if (access(target.substr(1).c_str(), F_OK) == -1 && uri.find("/cgi-bin/") == std::string::npos)
         statusCode = 404;
 
     if (statusCode != 200)
     {
+        std::cerr << "Status code: " << statusCode << std::endl;
         uri = server.root + "/" + server.errorPage;
         HttpResponse httpResponse(uri, httpRequest, statusCode);
         std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
@@ -252,8 +253,11 @@ void Service::handleEvent(int clientSocketFd) {
         _clientSocketToPort.erase(clientSocketFd);
         return ;
     }
-    if (uri.find(".php") != std::string::npos)
-        executeCGI(uri.substr(1), httpRequest.method, clientSocketFd);
+    if (uri.find("/cgi-bin/") != std::string::npos)
+    {
+        executeCGI(uri.substr(1), httpRequest, clientSocketFd, location);
+        return ;
+    }
     else if (httpRequest.method == GET)
         getMethod(uri, httpRequest, location, statusCode, clientSocketFd, server);
     else if (httpRequest.method == POST)
@@ -266,16 +270,24 @@ void Service::handleEvent(int clientSocketFd) {
     _clientSocketToPort.erase(clientSocketFd);
 }
 
-void Service::executeCGI(const std::string& uri, int requestMethod, int clientSocketFd)
+void Service::executeCGI(const std::string& uri, HttpRequest &request, int clientSocketFd, Location location)
 {
-    int cgiPipe[2];
-    if (pipe(cgiPipe) == -1)
+    int cgiInPipe[2];
+    int cgiOutPipe[2];
+    if (pipe(cgiInPipe) == -1)
     {
         std::cerr << "Failed to create pipe: " << std::strerror(errno) << '\n';
         return;
     }
-    setNonBlocking(cgiPipe[0]);
-    setNonBlocking(cgiPipe[1]);
+    if (pipe(cgiOutPipe) == -1)
+    {
+        std::cerr << "Failed to create pipe: " << std::strerror(errno) << '\n';
+        return;
+    }
+    setNonBlocking(cgiInPipe[0]);
+    setNonBlocking(cgiInPipe[1]);
+    setNonBlocking(cgiOutPipe[0]);
+    setNonBlocking(cgiOutPipe[1]);
 
     pid_t pid = fork();
     if (pid == -1)
@@ -286,26 +298,40 @@ void Service::executeCGI(const std::string& uri, int requestMethod, int clientSo
 
     if (pid == 0)
     {
-        close(cgiPipe[0]);
-        dup2(cgiPipe[1], STDOUT_FILENO);
-        close(cgiPipe[1]);
+        close(cgiInPipe[1]);
+        close(cgiOutPipe[0]);
+        dup2(cgiInPipe[0], STDIN_FILENO);
+        dup2(cgiOutPipe[1], STDOUT_FILENO);
+        close(cgiInPipe[0]);
+        close(cgiOutPipe[1]);
 
-        const char* interpreter = "/opt/homebrew/bin/php-cgi";
-        std::string scriptPath = uri.substr(0, uri.find(".php") + 4);
-        std::string pathInfo = uri.substr(uri.find(".php") + 4, uri.find("?") - uri.find(".php") - 4);
+        std::string scriptPath = uri.substr(0, uri.find(".py") + 3);
+        std::string pathInfo = uri.substr(uri.find(".py") + 3, uri.find("?") - uri.find(".py") - 3);
         std::string queryString = uri.substr(uri.find("?") + 1);
-        std::cerr << "Script Path: " << scriptPath << std::endl;
-        std::cerr << "Path Info: " << pathInfo << std::endl;
-        std::cerr << "Query String: " << queryString << std::endl;
-        char *args[] = { const_cast<char*>(scriptPath.c_str()), NULL };
 
+        std::string interpreter = location.cgiPath;
+        std::string script = uri.substr(uri.find("cgi-bin/") + 8);
+        if (script.empty())
+            script = "time.py";
+        char **args = (char **)malloc(sizeof(char *) * 3);
+        args[0] = strdup(interpreter.c_str());
+        args[1] = strdup(("cgi-bin/" + script).c_str());
+        args[2] = NULL;
+        for (int i = 0; args[i] != NULL; i++)
+            std::cerr << "args[" << i << "]: " << args[i] << std::endl;
         std::vector<std::string> envStrings;
         envStrings.push_back("SCRIPT_FILENAME=" + scriptPath);
         envStrings.push_back("PATH_INFO=" + pathInfo);
         envStrings.push_back("QUERY_STRING=" + queryString);
-        std::string method = requestMethod == GET ? "GET" : "POST";
+        std::string method = request.method == GET ? "GET" : "POST";
         envStrings.push_back("REQUEST_METHOD=" + method);
         envStrings.push_back("REDIRECT_STATUS=200");
+        envStrings.push_back("CONTENT_LENGTH=" + std::to_string(request.body.size()));
+        envStrings.push_back("CONTENT_TYPE=" + request.headers["Content-Type"]);
+        envStrings.push_back("SERVER_PROTOCOL=" + request.version);
+        envStrings.push_back("SERVER_SOFTWARE=webserv");
+        envStrings.push_back("SERVER_NAME=" + request.headers["Host"]);
+        envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
 
         // char* 배열로 변환
         std::vector<char*> env(envStrings.size() + 1); // +1 for NULL terminator
@@ -314,18 +340,23 @@ void Service::executeCGI(const std::string& uri, int requestMethod, int clientSo
         }
         env[envStrings.size()] = NULL; // NULL terminator
 
-        execve(interpreter, args, env.data());
+        execve(args[0], args, env.data());
         exit(1);
     }
-    close(cgiPipe[1]);
+    close(cgiInPipe[0]);
+    close(cgiOutPipe[1]);
+    // request 전문을 파이프로 전달
+    if (request.method == POST)
+        write(cgiInPipe[1], request.full.c_str(), request.full.size());
     pollfd pollFd;
-    pollFd.fd = cgiPipe[0];
+    pollFd.fd = cgiOutPipe[0];
     pollFd.events = POLLIN;
     pollFd.revents = 0;
     _pollFds.push_back(pollFd);
-    _cgiBufferTable[cgiPipe[0]] = "";
-    _cgiFdToClientFd[cgiPipe[0]] = clientSocketFd;
-    _clientFdToCgiFd[clientSocketFd] = cgiPipe[0];
+    _cgiBufferTable[cgiOutPipe[0]] = "";
+    _cgiFdToClientFd[cgiOutPipe[0]] = clientSocketFd;
+    _clientFdToCgiFd[clientSocketFd] = cgiOutPipe[0];
+    close(cgiInPipe[1]);
 }
 
 void Service::handleCgiEvent(int cgiPipeFd, int clientFd)
@@ -339,9 +370,11 @@ void Service::handleCgiEvent(int cgiPipeFd, int clientFd)
         std::cout << "------- CGI Response -------" << std::endl;
         std::cout << _cgiBufferTable[cgiPipeFd];
         std::cout << "----------------------------" << std::endl;
-        _cgiBufferTable[cgiPipeFd] = "HTTP/1.1 200 OK\n" + _cgiBufferTable[cgiPipeFd];
-        send(clientFd, _cgiBufferTable[cgiPipeFd].c_str(), _cgiBufferTable[cgiPipeFd].size(), 0);
+        _cgiBufferTable[cgiPipeFd] = "HTTP/1.1 303 See Other" + _cgiBufferTable[cgiPipeFd];
+        send(_cgiFdToClientFd[cgiPipeFd], _cgiBufferTable[cgiPipeFd].c_str(), _cgiBufferTable[cgiPipeFd].size(), 0);
         close(cgiPipeFd);
+        close(clientFd);
+        _clientSocketToPort.erase(clientFd);
         _cgiBufferTable.erase(cgiPipeFd);
         _cgiFdToClientFd.erase(cgiPipeFd);
         _clientFdToCgiFd.erase(clientFd);
