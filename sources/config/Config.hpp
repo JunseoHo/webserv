@@ -26,34 +26,35 @@ struct Server
 	int						clientMaxBodySize;
 	std::string				root;
 	std::list<Location>		locations;
-	std::string errorPage;
+	std::string				errorPage;
 };
 
 class Config
 {
 	public:
 		Config();
-		Config(std::string& configFilePath);
-		Config&	operator=(const Config& rhs);
 		Config(const Config& other);
+		Config(const std::string& configFilePath);
+		
+		Config&	operator=(const Config& rhs);
+		
 		~Config();
 
-
-		Server& selectServer(std::string& host, int port) const;
-		const Location& findLocation(const Server& server, const std::string& uri) const;
-		void	print(void) const;
+		const Server&			SelectProcessingServer(const std::string& host, int port) const;
+		const Location&			FindOptimalLocation(const Server& server, const std::string& uri) const;
+		const std::vector<int>	GetAllListeningPorts(void) const;
+		const std::list<Server> GetServers(void) const;
 
 		class InvalidConfigFormatException : public std::exception
 		{
 			virtual const char* what() const throw();
 		};
 
-		std::vector<int> getPorts() const;
-
 	private:
 		std::list<Server> _servers;
+
+		std::string trim(const std::string& str) const;
 };
 
-bool validateConfig(int argc, char *argv[]);
-std::string getConfig(int argc, char *argv[]);
+std::ostream& operator<<(std::ostream& os, const Config& config);
 #endif

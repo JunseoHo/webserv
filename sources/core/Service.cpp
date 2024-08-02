@@ -25,7 +25,7 @@ Service& Service::operator= (const Service& rhs) {
 
 Service::Service(const Config &config)
     :config(config) {
-    _pollFds.resize(config.getPorts().size());
+    _pollFds.resize(config.GetAllListeningPorts().size());
 }
 
 void Service::Start() {
@@ -40,7 +40,7 @@ void Service::setNonBlocking(int fd) {
 }
 
 void Service::setupSockets() {
-    std::vector<int> ports = config.getPorts();
+    std::vector<int> ports = config.GetAllListeningPorts();
     int index = 0;
     for (int i = 0; i < ports.size(); i++) {
         int port = ports[i];
@@ -181,7 +181,7 @@ void Service::handleEvent(int clientSocketFd) {
     int port = _clientSocketToPort[clientSocketFd];
     // 헤더에서 host 추출
     std::string host = extractHost(_bufferTable[clientSocketFd]);
-    Server server = config.selectServer(host, port);
+    Server server = config.SelectProcessingServer(host, port);
 
     std::cout << "Selected server name: " << server.serverName << std::endl;
 
@@ -223,7 +223,7 @@ void Service::handleEvent(int clientSocketFd) {
 
     int statusCode = 200;
 
-    Location location = config.findLocation(server, httpRequest.target);
+    Location location = config.FindOptimalLocation(server, httpRequest.target);
 
     std::cout << "Selected location path: " << location.path << std::endl;
 
