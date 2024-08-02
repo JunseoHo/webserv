@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CGI POST Example</title>
+</head>
+<body>
+    <h1>CGI POST Example</h1>
+    <form action="/cgi-bin/submit.py" method="post" enctype="multipart/form-data">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username"><br><br>
+        <label for="file">Upload a file:</label>
+        <input type="file" id="file" name="file"><br><br>
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
