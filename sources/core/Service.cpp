@@ -354,39 +354,75 @@ void Service::executeCGI(const std::string& uri, HttpRequest &request, int clien
     pollFd.revents = 0;
     _pollFds.push_back(pollFd);
     _cgiBufferTable[cgiOutPipe[0]] = "";
+	_cgiChunked[cgiOutPipe[0]] = false;
     _cgiFdToClientFd[cgiOutPipe[0]] = clientSocketFd;
     _clientFdToCgiFd[clientSocketFd] = cgiOutPipe[0];
     close(cgiInPipe[1]);
+}
+
+
+std::string findLineWithString(const std::string& text, const std::string& s) {
+    std::vector<std::string> result;
+    std::istringstream stream(text);
+    std::string line;
+    
+    while (std::getline(stream, line)) {
+        if (line.find(s) != std::string::npos) {
+            return line;
+        }
+    }
+    return NULL;
 }
 
 void Service::handleCgiEvent(int cgiPipeFd, int clientFd)
 {
     char buffer[BUFFER_SIZE];
     int size = read(cgiPipeFd, buffer, BUFFER_SIZE - 1);
-    if (size > 0) {
-        _cgiBufferTable[cgiPipeFd] += std::string(buffer, size);
+    if (size > 0) {	// CGI Chunked일 경우, 바디에 0 들어오면 바로 읽기 중단.
+		_cgiBufferTable[cgiPipeFd] += std::string(buffer, size);
+		if (_cgiBufferTable[cgiPipeFd].find("\r\n\r\n") != std::string::npos
+				&& _cgiBufferTable[cgiPipeFd].find("Transfer-Encoding: chunked") != std::string::npos)
+		{
+			_cgiChunked[cgiPipeFd] = true;
+		}
         return;
-    } else if (size == 0) {
-        std::cout << "------- CGI Response -------" << std::endl;
-        std::cout << _cgiBufferTable[cgiPipeFd];
-        std::cout << "----------------------------" << std::endl;
-        _cgiBufferTable[cgiPipeFd] = "HTTP/1.1 303 See Other" + _cgiBufferTable[cgiPipeFd];
-        send(_cgiFdToClientFd[cgiPipeFd], _cgiBufferTable[cgiPipeFd].c_str(), _cgiBufferTable[cgiPipeFd].size(), 0);
-        close(cgiPipeFd);
-        close(clientFd);
-        _clientSocketToPort.erase(clientFd);
-        _cgiBufferTable.erase(cgiPipeFd);
-        _cgiFdToClientFd.erase(cgiPipeFd);
-        _clientFdToCgiFd.erase(clientFd);
-    } else {
-        std::cerr << "read failed: " << strerror(errno) << '\n';
-        HttpResponse httpResponse("", HttpRequest(), 500);
-        send(clientFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-        close(cgiPipeFd);
-        _cgiBufferTable.erase(cgiPipeFd);
-        _cgiFdToClientFd.erase(cgiPipeFd);
-        _clientFdToCgiFd.erase(clientFd);
     }
+
+	if (size < 0)
+	{
+		std::cerr << "read failed: " << strerror(errno) << '\n';
+		HttpResponse httpResponse("", HttpRequest(), 500);
+		send(clientFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+		close(cgiPipeFd);
+		_cgiBufferTable.erase(cgiPipeFd);
+		_cgiFdToClientFd.erase(cgiPipeFd);
+		_clientFdToCgiFd.erase(clientFd);
+	}
+	else
+	{
+		if (_cgiChunked[cgiPipeFd])
+		{
+			HttpResponse response(_cgiBufferTable[cgiPipeFd]);
+			std::cout << response.full.c_str() << std::endl;
+			send(clientFd, response.full.c_str(), response.full.size(), 0);
+		}
+		else
+		{
+			std::cout << "------- CGI Response -------" << std::endl;
+			std::cout << _cgiBufferTable[cgiPipeFd];
+			std::cout << "----------------------------" << std::endl;
+			_cgiBufferTable[cgiPipeFd] = "HTTP/1.1 303 See Other" + _cgiBufferTable[cgiPipeFd];
+			send(_cgiFdToClientFd[cgiPipeFd], _cgiBufferTable[cgiPipeFd].c_str(), _cgiBufferTable[cgiPipeFd].size(), 0);
+		}
+		close(cgiPipeFd);
+		close(clientFd);
+		_clientSocketToPort.erase(clientFd);
+		_cgiBufferTable.erase(cgiPipeFd);
+		_cgiChunked.erase(cgiPipeFd);
+		_cgiFdToClientFd.erase(cgiPipeFd);
+		_clientFdToCgiFd.erase(clientFd);
+	}
+	
 }
 
 void Service::getMethod(std::string& uri,

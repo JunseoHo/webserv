@@ -54,6 +54,7 @@ class Service {
 		std::map<int, int> _serverSocketToPort;
 		std::map<int, int> _clientSocketToPort;
         std::map<int, int> _cgiFdToClientFd;
+		std::map<int, bool> _cgiChunked;
         std::map<int, int> _clientFdToCgiFd;
 };
 

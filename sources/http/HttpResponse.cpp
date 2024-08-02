@@ -7,6 +7,67 @@ HttpResponse::HttpResponse()
     message = "OK";
 }
 
+HttpResponse::HttpResponse(const std::string& cgiResponse)
+{
+	// 1. \r\n\r\n을 기준으로 S를 두 부분으로 나눈다.
+    size_t delimiterPos = cgiResponse.find("\r\n\r\n");
+    if (delimiterPos == std::string::npos) {
+        throw std::invalid_argument("Input string does not contain two parts separated by \\r\\n\\r\\n");
+    }
+
+    std::string headerPart = cgiResponse.substr(0, delimiterPos);
+    std::string bodyPart = cgiResponse.substr(delimiterPos + 4);
+
+    // 2. 첫번째 부분을 라인 단위로 순회하는데 만약 :로 구분된 토큰의 왼쪽이 Status면 Http 응답의 스타트라인으로 수정한다.
+    std::istringstream headerStream(headerPart);
+    std::string line;
+    std::string modifiedHeader;
+    bool statusModified = false;
+
+    while (std::getline(headerStream, line)) {
+        if (line.find("Status:") == 0 && !statusModified) {
+            std::istringstream lineStream(line);
+            std::string token;
+            std::getline(lineStream, token, ':');  // "Status"
+            std::getline(lineStream, token);      // " <status code and message>"
+            modifiedHeader = "HTTP/1.1" + token + "\r\n" + modifiedHeader;
+            statusModified = true;
+        } 
+		else if (line.find("Transfer-Encoding:") == 0) {
+			// 이거 값이 청크드 아닐 때도 고려해서 구현해야 합니다.
+			continue;
+        }
+		else {
+            modifiedHeader += line + "\r\n";
+        }
+    }
+
+    // 3. 두번째 부분은 문자열의 길이와 문자열의 내용이 번갈아 가면서 작성되어 있다. 내용을 하나로 합쳐라.
+    std::string mergedBody;
+    std::istringstream bodyStream(bodyPart);
+    while (!bodyStream.eof()) {
+        int len;
+        bodyStream >> len;
+        if (bodyStream.fail() || len <= 0) {
+            break;
+        }
+        bodyStream.get();  // Consume the space after the length number
+        char* buffer = new char[len];
+        bodyStream.read(buffer, len);
+        mergedBody.append(buffer, len);
+        delete[] buffer;
+    }
+    // 4. 첫번째 부분의 결과에 두번째 내용의 길이를 기반으로 Content-Length 헤더를 추가하라.
+    std::ostringstream contentLengthHeader;
+    contentLengthHeader << "Content-Length: " << mergedBody.length() << "\r\n";
+    modifiedHeader += contentLengthHeader.str();
+
+    // 5. 두 부분을 다시 \r\n\r\n을 기준으로 결합하여 반환하라.
+    std::string finalResult = modifiedHeader + "\r\n" + mergedBody;
+	std::cout << finalResult << std::endl;
+    full = finalResult;
+}
+
 std::string readFileToString(const std::string& filename) {
     std::ifstream file(filename.substr(1));
     if (!file.is_open()) {

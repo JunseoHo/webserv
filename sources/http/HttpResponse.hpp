@@ -17,6 +17,7 @@ class HttpResponse : public Http
 		HttpResponse();
 		HttpResponse(const std::string& uri, const HttpRequest &requset, int statusCode);
 		HttpResponse(const std::string& uri, const HttpRequest &requset, int statusCode, const std::string& queryString);
+		HttpResponse(const std::string& cgiResponse);
 		HttpResponse(const HttpResponse& obj) {};
 		~HttpResponse() {};
 
