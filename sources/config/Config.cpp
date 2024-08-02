@@ -88,6 +88,8 @@ Config::Config(std::string &configFilePath)
 				currentLocation->index = value;
 			else if (key == "autoindex")
 				currentLocation->autoIndex = (value == "on");
+			else if (key == "cgi_path")
+				currentLocation->cgiPath = value;
 			else if (key == "location")
 			{
 				if (currentLocation != NULL)

@@ -237,11 +237,12 @@ void Service::handleEvent(int clientSocketFd) {
     std::string uri = server.root + httpRequest.target;
     std::string target = uri.find("?") != std::string::npos ? uri.substr(0, uri.find("?")) : uri;
 
-    if (access(target.substr(1).c_str(), F_OK) == -1)
+    if (access(target.substr(1).c_str(), F_OK) == -1 && uri.find("/cgi-bin/") == std::string::npos)
         statusCode = 404;
 
     if (statusCode != 200)
     {
+        std::cerr << "Status code: " << statusCode << std::endl;
         uri = server.root + "/" + server.errorPage;
         HttpResponse httpResponse(uri, httpRequest, statusCode);
         std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
@@ -252,8 +253,8 @@ void Service::handleEvent(int clientSocketFd) {
         _clientSocketToPort.erase(clientSocketFd);
         return ;
     }
-    if (uri.find(".php") != std::string::npos)
-        executeCGI(uri.substr(1), httpRequest.method, clientSocketFd);
+    if (uri.find("/cgi-bin/") != std::string::npos)
+        executeCGI(uri.substr(1), httpRequest.method, clientSocketFd, location);
     else if (httpRequest.method == GET)
         getMethod(uri, httpRequest, location, statusCode, clientSocketFd, server);
     else if (httpRequest.method == POST)
@@ -266,7 +267,7 @@ void Service::handleEvent(int clientSocketFd) {
     _clientSocketToPort.erase(clientSocketFd);
 }
 
-void Service::executeCGI(const std::string& uri, int requestMethod, int clientSocketFd)
+void Service::executeCGI(const std::string& uri, int requestMethod, int clientSocketFd, Location location)
 {
     int cgiPipe[2];
     if (pipe(cgiPipe) == -1)
@@ -290,15 +291,20 @@ void Service::executeCGI(const std::string& uri, int requestMethod, int clientSo
         dup2(cgiPipe[1], STDOUT_FILENO);
         close(cgiPipe[1]);
 
-        const char* interpreter = "/opt/homebrew/bin/php-cgi";
-        std::string scriptPath = uri.substr(0, uri.find(".php") + 4);
-        std::string pathInfo = uri.substr(uri.find(".php") + 4, uri.find("?") - uri.find(".php") - 4);
+        std::string scriptPath = uri.substr(0, uri.find(".py") + 3);
+        std::string pathInfo = uri.substr(uri.find(".py") + 3, uri.find("?") - uri.find(".py") - 3);
         std::string queryString = uri.substr(uri.find("?") + 1);
-        std::cerr << "Script Path: " << scriptPath << std::endl;
-        std::cerr << "Path Info: " << pathInfo << std::endl;
-        std::cerr << "Query String: " << queryString << std::endl;
-        char *args[] = { const_cast<char*>(scriptPath.c_str()), NULL };
 
+        std::string interpreter = location.cgiPath;
+        std::string script = uri.substr(uri.find("cgi-bin/") + 8);
+        if (script.empty())
+            script = "time.py";
+        char **args = (char **)malloc(sizeof(char *) * 3);
+        args[0] = strdup(interpreter.c_str());
+        args[1] = strdup(("cgi-bin/" + script).c_str());
+        args[2] = NULL;
+        for (int i = 0; args[i] != NULL; i++)
+            std::cerr << "args[" << i << "]: " << args[i] << std::endl;
         std::vector<std::string> envStrings;
         envStrings.push_back("SCRIPT_FILENAME=" + scriptPath);
         envStrings.push_back("PATH_INFO=" + pathInfo);
@@ -314,7 +320,7 @@ void Service::executeCGI(const std::string& uri, int requestMethod, int clientSo
         }
         env[envStrings.size()] = NULL; // NULL terminator
 
-        execve(interpreter, args, env.data());
+        execve(args[0], args, env.data());
         exit(1);
     }
     close(cgiPipe[1]);

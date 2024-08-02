@@ -28,8 +28,9 @@ server:
     index: delete.html
     autoindex: off
   location: /cgi-bin
-    allow_methods: GET
-    index: cgi-bin.html
+    allow_methods: GET POST
+    index: time.py
+    cgi_path: /usr/bin/python3
     autoindex: off
 
 server:

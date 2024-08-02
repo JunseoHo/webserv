@@ -15,6 +15,7 @@ struct Location
 	int			acceptedHttpMethods;
 	bool		autoIndex;
 	std::string index;
+	std::string cgiPath;
 };
 
 struct Server
