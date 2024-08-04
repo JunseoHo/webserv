@@ -23,6 +23,7 @@ HttpResponse::HttpResponse(const std::string& cgiResponse)
     std::string line;
     std::string modifiedHeader;
     bool statusModified = false;
+    bool isChunked = false;
 
     while (std::getline(headerStream, line)) {
         if (line.find("Status:") == 0 && !statusModified) {
@@ -34,8 +35,15 @@ HttpResponse::HttpResponse(const std::string& cgiResponse)
             statusModified = true;
         } 
 		else if (line.find("Transfer-Encoding:") == 0) {
-			// 이거 값이 청크드 아닐 때도 고려해서 구현해야 합니다.
-			continue;
+			std::istringstream lineStream(line);
+            std::string token;
+            std::getline(lineStream, token, ':');  // "Transfer-Encoding"
+            std::getline(lineStream, token);      // " <chunked>"
+            if (token.find("chunked") != std::string::npos)
+            {
+                isChunked = true;
+                continue ;
+            }
         }
 		else {
             modifiedHeader += line + "\r\n";
@@ -45,18 +53,24 @@ HttpResponse::HttpResponse(const std::string& cgiResponse)
     // 3. 두번째 부분은 문자열의 길이와 문자열의 내용이 번갈아 가면서 작성되어 있다. 내용을 하나로 합쳐라.
     std::string mergedBody;
     std::istringstream bodyStream(bodyPart);
-    while (!bodyStream.eof()) {
-        int len;
-        bodyStream >> len;
-        if (bodyStream.fail() || len <= 0) {
-            break;
+    if (isChunked)
+    {
+        while (!bodyStream.eof()) {
+            int len;
+            bodyStream >> len;
+            if (bodyStream.fail() || len <= 0) {
+                break;
+            }
+            bodyStream.get();  // Consume the space after the length number
+            char* buffer = new char[len];
+            bodyStream.read(buffer, len);
+            mergedBody.append(buffer, len);
+            delete[] buffer;
         }
-        bodyStream.get();  // Consume the space after the length number
-        char* buffer = new char[len];
-        bodyStream.read(buffer, len);
-        mergedBody.append(buffer, len);
-        delete[] buffer;
     }
+    else
+        mergedBody = bodyPart;
+    
     // 4. 첫번째 부분의 결과에 두번째 내용의 길이를 기반으로 Content-Length 헤더를 추가하라.
     std::ostringstream contentLengthHeader;
     contentLengthHeader << "Content-Length: " << mergedBody.length() << "\r\n";
