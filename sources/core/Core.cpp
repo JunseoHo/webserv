@@ -63,31 +63,6 @@ void Core::eventLoop() {
     }
 }
 
-size_t extractContentLength(const std::string& header)
-{
-    size_t contentLengthPos = header.find("Content-Length: ");
-    if (contentLengthPos == std::string::npos)
-        return 0;
-    size_t endOfContentLength = header.find("\r\n", contentLengthPos);
-    std::string contentLength;
-    if (endOfContentLength == std::string::npos)
-        contentLength = header.substr(contentLengthPos + 16);
-    else
-        contentLength = header.substr(contentLengthPos + 16, endOfContentLength - contentLengthPos - 16);
-    return std::stoul(contentLength);
-}
-
-std::string extractHost(const std::string& header)
-{
-    size_t hostStartPos = header.find("Host: ") + 6;
-    if (hostStartPos == std::string::npos)
-        return "";
-    size_t hostEndPos = header.find("\r\n", hostStartPos);
-    if (hostEndPos == std::string::npos)
-        return header.substr(hostStartPos);
-    return header.substr(hostStartPos, hostEndPos - hostStartPos);
-}
-
 void Core::handleEvent(int clientSocketFd) {
 	char buffer[BUFFER_SIZE];
     ssize_t size = recv(clientSocketFd, buffer, BUFFER_SIZE - 1, 0);    // 클라이언트 소켓으로부터 Http 리퀘스트 내용 읽기
@@ -113,13 +88,14 @@ void Core::handleEvent(int clientSocketFd) {
     // 포트 번호 추출
     int port = _socketManager.GetPortBySocketFd(clientSocketFd);
     // 헤더에서 host 추출
-    std::string host = extractHost(_bufferManager.GetBuffer(clientSocketFd));
+    std::string host = getHeaderValue(_bufferManager.GetBuffer(clientSocketFd), "Host");
     Server server = config.SelectProcessingServer(host, port);
 
     std::cout << "Selected server name: " << server.serverName << std::endl;
 
     // 헤더에서 content-length 추출
-    size_t contentLength = extractContentLength(_bufferManager.GetBuffer(clientSocketFd));
+    std::string contentLengthString = getHeaderValue(_bufferManager.GetBuffer(clientSocketFd), "Content-Length");
+    size_t contentLength = contentLengthString.empty() ? 0 : std::stoi(contentLengthString);
     size_t totalLength = headerEndPos + 4 + contentLength;
 
     // clientMaxBodySize가 0이 아닌 경우, body size 체크, 초과시 413
@@ -291,19 +267,6 @@ void Core::executeCGI(const std::string& uri, HttpRequest &request, int clientSo
     close(cgiInPipe[1]);
 }
 
-std::string findLineWithString(const std::string& text, const std::string& s) {
-    std::vector<std::string> result;
-    std::istringstream stream(text);
-    std::string line;
-    
-    while (std::getline(stream, line)) {
-        if (line.find(s) != std::string::npos) {
-            return line;
-        }
-    }
-    return NULL;
-}
-
 void Core::handleCgiEvent(int cgiPipeFd, int clientFd)
 {
     char buffer[BUFFER_SIZE];
@@ -385,55 +348,6 @@ void Core::getMethod(std::string& uri,
     std::cout << httpResponse.response;
     std::cout << std::endl << "=============================" << std::endl << std::endl;
     send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-}
-
-std::vector<std::string> split(const std::string& str, const std::string& delimiter) {
-    std::vector<std::string> tokens;
-    size_t start = 0, end;
-    while ((end = str.find(delimiter, start)) != std::string::npos) {
-        tokens.push_back(str.substr(start, end - start));
-        start = end + delimiter.length();
-    }
-    tokens.push_back(str.substr(start));
-    return tokens;
-}
-
-void parse_multipart_data(const std::string& path, const std::string& body, const std::string& boundary) {
-    std::vector<std::string> parts = split(body, boundary);
-    for (std::vector<std::string>::iterator it = parts.begin(); it != parts.end(); ++it) {
-        std::string part = *it;
-        if (part.empty() || part == "--\r\n" || part == "--") {
-            continue;
-        }
-
-        // 헤더와 바디 추출
-        size_t header_end_pos = part.find("\r\n\r\n");
-        if (header_end_pos == std::string::npos) {
-            continue;
-        }
-        std::string headers = part.substr(0, header_end_pos);
-        std::string body = part.substr(header_end_pos + 4);
-
-        // 파일이름 추출
-        size_t cd_pos = headers.find("Content-Disposition:");
-        if (cd_pos == std::string::npos) {
-            continue;
-        }
-
-        std::string content_disposition = headers.substr(cd_pos, headers.find("\r\n", cd_pos) - cd_pos);
-        size_t filename_pos = content_disposition.find("filename=");
-        if (filename_pos != std::string::npos) {
-            std::string filename = content_disposition.substr(filename_pos + 10);
-            filename = filename.substr(0, filename.find("\""));
-
-            // Save file
-            std::ofstream outfile(path + filename, std::ios::binary);
-            outfile.write(body.data(), body.size());
-            outfile.close();
-
-            std::cout << "Saved file: " << filename << std::endl;
-        }
-    }
 }
 
 void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd) {
