@@ -20,23 +20,27 @@ class SocketManager
 		~SocketManager();
 
 		pollfd newClientPollfd(int serverFd);
-		void connectCgiToClient(int cgiFd, int clientFd);
-		void disconnectCgiToClient(int cgiFd);
+		
 		void addServerSockerFd(int fd);
 		void addClientSocketFd(int fd, int port);
 		void removeClientSocketFd(int fd);
-		const std::map<int, int>& GetSocketFdPortMap(void) const;
-		const std::vector<int>& GetServerSocketFds(void) const;
-		const std::vector<int>& GetClientSocketFds(void) const;
+
+		void connectCgiToClient(int cgiFd, int clientFd);
+		void disconnectCgiToClient(int cgiFd);
+		
 		const int GetClientFdByCgiFd(int cgiFd) const;
 		const int GetCgiFdByClientFd(int clientFd) const;
+		int	GetPortBySocketFd(int fd) const;
+
+		const std::map<int, int>& GetSocketFdPortMap(void) const;
 		const std::map<int, int>& GetCgiFdToClientFdMap(void) const;
 		const std::map<int, int>& GetClientFdToCgiFdMap(void) const;
+		const std::vector<int>& GetServerSocketFds(void) const;
+		const std::vector<int>& GetClientSocketFds(void) const;
 
 		bool isServerSocketFd(int fd) const;
 		bool isConnectedCgiToClient(int cgiFd) const;
 		bool isConnectedClinetToCgi(int clientFd) const;
-		int	 GetPortBySocketFd(int fd) const;
 
 	private:
 		SocketManager(const SocketManager& other);

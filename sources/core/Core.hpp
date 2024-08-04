@@ -16,6 +16,7 @@
 # include <fcntl.h>
 # include <sys/types.h>
 # include <sys/stat.h>
+# include "BufferManager.hpp"
 # include "SocketManager.hpp"
 # include "../http/HttpRequest.hpp"
 # include "../http/HttpResponse.hpp"
@@ -39,6 +40,8 @@ class Core {
         Core& operator= (const Core& rhs);
 
 		SocketManager _socketManager;
+        BufferManager _bufferManager;
+        BufferManager _cgiBufferManager;
 
         void setUpSockets();
         void eventLoop();
@@ -52,8 +55,6 @@ class Core {
 
     
         std::vector<pollfd> _pollFds;
-		std::map<int, std::string> _bufferTable;
-        std::map<int, std::string> _cgiBufferTable;
 };
 
 #endif

@@ -4,5 +4,6 @@
 # define DEFAULT_CONFIG_PATH	"conf/default.yml"
 # include "Core.hpp"
 # include "SocketManager.hpp"
+# include "BufferManager.hpp"
 
 #endif

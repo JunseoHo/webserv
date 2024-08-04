@@ -5,6 +5,7 @@ CXXFLAGS = -std=c++98
 SRC = sources/core/main.cpp\
 	sources/core/Core.cpp\
 	sources/core/SocketManager.cpp\
+	sources/core/BufferManager.cpp\
 	sources/http/HttpRequest.cpp\
 	sources/config/Config.cpp\
 	sources/http/HttpResponse.cpp\

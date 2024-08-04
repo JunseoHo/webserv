@@ -39,17 +39,17 @@ void Core::eventLoop() {
                     if (_socketManager.isServerSocketFd(_pollFds[i].fd)) {  // 서버 소켓인 경우
                         pollfd clientPollFd = _socketManager.newClientPollfd(_pollFds[i].fd);
                         _pollFds.push_back(clientPollFd);
-                        _bufferTable[clientPollFd.fd] = "";
+                        _bufferManager.addBuffer(clientPollFd.fd);
                     } else if (_socketManager.isConnectedCgiToClient(_pollFds[i].fd)) { // CGI PIPE인 경우
                         handleCgiEvent(_pollFds[i].fd, _socketManager.GetClientFdByCgiFd(_pollFds[i].fd));
-                        if (_cgiBufferTable.find(_pollFds[i].fd) == _cgiBufferTable.end()
+                        if (_cgiBufferManager.isBufferEmpty(_pollFds[i].fd)
                             && !_socketManager.isConnectedCgiToClient(_pollFds[i].fd)) {
                             _pollFds.erase(_pollFds.begin() + i);
                             --i;
                         }
                     } else if (!_socketManager.isConnectedClinetToCgi(_pollFds[i].fd)) {  // 클라이언트 소켓인 경우
                         handleEvent(_pollFds[i].fd);
-                        if (_bufferTable.find(_pollFds[i].fd) == _bufferTable.end()
+                        if (_bufferManager.isBufferEmpty(_pollFds[i].fd)
                             && !_socketManager.isConnectedClinetToCgi(_pollFds[i].fd)) {
                             _pollFds.erase(_pollFds.begin() + i);
                             --i;
@@ -59,7 +59,6 @@ void Core::eventLoop() {
             }
         } catch (std::exception &e) {
             std::cerr << e.what() << std::endl;
-            return ;
         }
     }
 }
@@ -91,7 +90,7 @@ std::string extractHost(const std::string& header)
 
 void Core::handleEvent(int clientSocketFd) {
 	char buffer[BUFFER_SIZE];
-    int size = recv(clientSocketFd, buffer, BUFFER_SIZE - 1, 0);    // 클라이언트 소켓으로부터 Http 리퀘스트 내용 읽기
+    ssize_t size = recv(clientSocketFd, buffer, BUFFER_SIZE - 1, 0);    // 클라이언트 소켓으로부터 Http 리퀘스트 내용 읽기
     if (size <= 0)
     {
         if (size == 0)
@@ -99,28 +98,28 @@ void Core::handleEvent(int clientSocketFd) {
         else
             std::cerr << "recv failed:" << strerror(errno) << "\n";
         close(clientSocketFd);
-        _bufferTable.erase(clientSocketFd);
+        _bufferManager.removeBuffer(clientSocketFd);
         _socketManager.removeClientSocketFd(clientSocketFd);
         return ;
     }
     // buffer에 읽은 내용 추가
-	_bufferTable[clientSocketFd] += std::string(buffer, size);  // 바이너리 파일의 경우 null 문자가 있을 수 있으므로 size만큼만 추가
+	_bufferManager.appendBuffer(clientSocketFd, buffer, size);
 
     // 헤더가 모두 받아졌는지 확인
-    size_t headerEndPos = _bufferTable[clientSocketFd].find("\r\n\r\n");
+    size_t headerEndPos = _bufferManager.GetBuffer(clientSocketFd).find("\r\n\r\n");
     if (headerEndPos == std::string::npos)
         return ;
 
     // 포트 번호 추출
     int port = _socketManager.GetPortBySocketFd(clientSocketFd);
     // 헤더에서 host 추출
-    std::string host = extractHost(_bufferTable[clientSocketFd]);
+    std::string host = extractHost(_bufferManager.GetBuffer(clientSocketFd));
     Server server = config.SelectProcessingServer(host, port);
 
     std::cout << "Selected server name: " << server.serverName << std::endl;
 
     // 헤더에서 content-length 추출
-    size_t contentLength = extractContentLength(_bufferTable[clientSocketFd]);
+    size_t contentLength = extractContentLength(_bufferManager.GetBuffer(clientSocketFd));
     size_t totalLength = headerEndPos + 4 + contentLength;
 
     // clientMaxBodySize가 0이 아닌 경우, body size 체크, 초과시 413
@@ -128,32 +127,32 @@ void Core::handleEvent(int clientSocketFd) {
     {
         // 413 error
         HttpRequest httpRequest;
-        httpRequest.parse(_bufferTable[clientSocketFd].substr(0, headerEndPos));
+        httpRequest.parse(_bufferManager.GetBuffer(clientSocketFd).substr(0, headerEndPos));
         HttpResponse httpResponse(server.root + "/" + server.errorPage, httpRequest, 413);
         send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
         // body가 큰 경우 client를 차단
         close(clientSocketFd);
-        _bufferTable.erase(clientSocketFd);
+        _bufferManager.removeBuffer(clientSocketFd);
         _socketManager.removeClientSocketFd(clientSocketFd);
         return ;
     }
 
     // 헤더와 바디가 모두 받아졌는지 확인
-    if (totalLength > _bufferTable[clientSocketFd].size())
+    if (totalLength > _bufferManager.GetBuffer(clientSocketFd).size())
         return ;
 
     std::cout << std::endl << "========== Request ==========" << std::endl << std::endl;
-    std::cout << _bufferTable[clientSocketFd].substr(0, totalLength);
+    std::cout << _bufferManager.GetBuffer(clientSocketFd).substr(0, totalLength);
     std::cout << std::endl << "=============================" << std::endl << std::endl;
 
     // 리퀘스트 하나를 분리하여 파싱
     HttpRequest httpRequest;
-    httpRequest.parse(_bufferTable[clientSocketFd].substr(0, totalLength));
+    httpRequest.parse(_bufferManager.GetBuffer(clientSocketFd).substr(0, totalLength));
     // buffer에서 처리한 리퀘스트 제거
-    if (totalLength == _bufferTable[clientSocketFd].size())
-        _bufferTable.erase(clientSocketFd);
+    if (totalLength == _bufferManager.GetBuffer(clientSocketFd).size())
+        _bufferManager.removeBuffer(clientSocketFd);
     else // 다음 리퀘스트를 위해 buffer 재설정
-        _bufferTable[clientSocketFd] = _bufferTable[clientSocketFd].substr(totalLength);
+        _bufferManager.removeBufferFront(clientSocketFd, totalLength);
 
     int statusCode = 200;
 
@@ -287,7 +286,7 @@ void Core::executeCGI(const std::string& uri, HttpRequest &request, int clientSo
     pollFd.events = POLLIN;
     pollFd.revents = 0;
     _pollFds.push_back(pollFd);
-    _cgiBufferTable[cgiOutPipe[0]] = "";
+    _cgiBufferManager.addBuffer(cgiOutPipe[0]);
     _socketManager.connectCgiToClient(cgiOutPipe[0], clientSocketFd);
     close(cgiInPipe[1]);
 }
@@ -308,9 +307,9 @@ std::string findLineWithString(const std::string& text, const std::string& s) {
 void Core::handleCgiEvent(int cgiPipeFd, int clientFd)
 {
     char buffer[BUFFER_SIZE];
-    int size = read(cgiPipeFd, buffer, BUFFER_SIZE - 1);
+    ssize_t size = read(cgiPipeFd, buffer, BUFFER_SIZE - 1);
     if (size > 0) {
-		_cgiBufferTable[cgiPipeFd] += std::string(buffer, size);
+		_cgiBufferManager.appendBuffer(cgiPipeFd, buffer, size);
         return;
     }
 
@@ -322,14 +321,14 @@ void Core::handleCgiEvent(int cgiPipeFd, int clientFd)
 	}
 	else
 	{
-        HttpResponse response(_cgiBufferTable[cgiPipeFd]);
+        HttpResponse response(_cgiBufferManager.GetBuffer(cgiPipeFd));
         std::cout << response.full.c_str() << std::endl;
         send(clientFd, response.full.c_str(), response.full.size(), 0);
 	}
 	close(cgiPipeFd);
     close(clientFd);
     _socketManager.removeClientSocketFd(clientFd);
-    _cgiBufferTable.erase(cgiPipeFd);
+    _cgiBufferManager.removeBuffer(cgiPipeFd);
     _socketManager.disconnectCgiToClient(cgiPipeFd);
 }
 
