@@ -12,11 +12,11 @@ HttpResponse::HttpResponse(const std::string& cgiResponse)
 	// 1. \r\n\r\n을 기준으로 S를 두 부분으로 나눈다.
     size_t delimiterPos = cgiResponse.find("\r\n\r\n");
     if (delimiterPos == std::string::npos) {
-        throw std::invalid_argument("Input string does not contain two parts separated by \\r\\n\\r\\n");
+        delimiterPos = cgiResponse.size();
     }
 
     std::string headerPart = cgiResponse.substr(0, delimiterPos);
-    std::string bodyPart = cgiResponse.substr(delimiterPos + 4);
+    std::string bodyPart = delimiterPos == cgiResponse.size() ? "" : cgiResponse.substr(delimiterPos + 4);
 
     // 2. 첫번째 부분을 라인 단위로 순회하는데 만약 :로 구분된 토큰의 왼쪽이 Status면 Http 응답의 스타트라인으로 수정한다.
     std::istringstream headerStream(headerPart);

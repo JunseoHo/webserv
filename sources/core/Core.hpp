@@ -54,11 +54,6 @@ class Core {
         std::vector<pollfd> _pollFds;
 		std::map<int, std::string> _bufferTable;
         std::map<int, std::string> _cgiBufferTable;
-		std::map<int, int> _serverSocketToPort;
-		std::map<int, int> _clientSocketToPort;
-        std::map<int, int> _cgiFdToClientFd;
-		std::map<int, bool> _cgiChunked;
-        std::map<int, int> _clientFdToCgiFd;
 };
 
 #endif

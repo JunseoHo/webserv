@@ -29,48 +29,37 @@ void Core::Start() {
 
 void Core::eventLoop() {
     while (true) {
-        // std::cout << "Polling..." << std::endl;
-        int pollResult = poll(_pollFds.data(), _pollFds.size(), -1);
-        if (pollResult == -1)
-        {
-            std::cerr << "Poll failed with error: " << strerror(errno) << std::endl;
-            continue;
-        }
-        for (int i = 0; i < _pollFds.size(); i++) {
-            if (_pollFds[i].revents & POLLIN) {
-                if (_socketManager.isServerSocketFd(_pollFds[i].fd)) {  // 서버 소켓인 경우
-                    int clientSocketFd = accept(_pollFds[i].fd, nullptr, nullptr);
-                    if (clientSocketFd == -1)
-                    {
-                        std::cerr << "accept failed: " << strerror(errno) << '\n';
-                        continue;
+        try {
+            // std::cout << "Polling..." << std::endl;
+            int pollResult = poll(_pollFds.data(), _pollFds.size(), -1);
+            if (pollResult == -1)
+                throw std::runtime_error("poll failed");
+            for (int i = 0; i < _pollFds.size(); i++) {
+                if (_pollFds[i].revents & POLLIN) {
+                    if (_socketManager.isServerSocketFd(_pollFds[i].fd)) {  // 서버 소켓인 경우
+                        pollfd clientPollFd = _socketManager.newClientPollfd(_pollFds[i].fd);
+                        _pollFds.push_back(clientPollFd);
+                        _bufferTable[clientPollFd.fd] = "";
+                    } else if (_socketManager.isConnectedCgiToClient(_pollFds[i].fd)) { // CGI PIPE인 경우
+                        handleCgiEvent(_pollFds[i].fd, _socketManager.GetClientFdByCgiFd(_pollFds[i].fd));
+                        if (_cgiBufferTable.find(_pollFds[i].fd) == _cgiBufferTable.end()
+                            && !_socketManager.isConnectedCgiToClient(_pollFds[i].fd)) {
+                            _pollFds.erase(_pollFds.begin() + i);
+                            --i;
+                        }
+                    } else if (!_socketManager.isConnectedClinetToCgi(_pollFds[i].fd)) {  // 클라이언트 소켓인 경우
+                        handleEvent(_pollFds[i].fd);
+                        if (_bufferTable.find(_pollFds[i].fd) == _bufferTable.end()
+                            && !_socketManager.isConnectedClinetToCgi(_pollFds[i].fd)) {
+                            _pollFds.erase(_pollFds.begin() + i);
+                            --i;
+                        }
                     }
-                    setNonBlocking(clientSocketFd);
-                    pollfd clientPollFd;
-                    clientPollFd.fd = clientSocketFd;
-                    clientPollFd.events = POLLIN;
-                    clientPollFd.revents = 0;
-                    _pollFds.push_back(clientPollFd);
-
-                    // 클라이언트 소켓과 포트 번호 매핑 추가
-                    _socketManager.addClientSocketFd(clientSocketFd, _socketManager.GetPortBySocketFd(_pollFds[i].fd));
-                    _bufferTable[clientSocketFd] = "";
-                } else if (_cgiBufferTable.find(_pollFds[i].fd) != _cgiBufferTable.end()) { // CGI PIPE인 경우
-                    handleCgiEvent(_pollFds[i].fd, _cgiFdToClientFd[_pollFds[i].fd]);
-                    if (_cgiBufferTable.find(_pollFds[i].fd) == _cgiBufferTable.end()
-                        && _cgiFdToClientFd.find(_pollFds[i].fd) == _cgiFdToClientFd.end()) {
-                        _pollFds.erase(_pollFds.begin() + i);
-                        --i;
-                    }
-                } else {  // 클라이언트 소켓인 경우
-                    handleEvent(_pollFds[i].fd);
-					if (_bufferTable.find(_pollFds[i].fd) == _bufferTable.end()
-                        && _clientFdToCgiFd.find(_pollFds[i].fd) == _clientFdToCgiFd.end()) {
-	                    _pollFds.erase(_pollFds.begin() + i);
-	                    --i;
-					}
                 }
             }
+        } catch (std::exception &e) {
+            std::cerr << e.what() << std::endl;
+            return ;
         }
     }
 }
@@ -145,7 +134,7 @@ void Core::handleEvent(int clientSocketFd) {
         // body가 큰 경우 client를 차단
         close(clientSocketFd);
         _bufferTable.erase(clientSocketFd);
-        _clientSocketToPort.erase(clientSocketFd);
+        _socketManager.removeClientSocketFd(clientSocketFd);
         return ;
     }
 
@@ -195,7 +184,7 @@ void Core::handleEvent(int clientSocketFd) {
         std::cout << std::endl << "=============================" << std::endl << std::endl;
         send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
         close(clientSocketFd);
-        _clientSocketToPort.erase(clientSocketFd);
+        _socketManager.removeClientSocketFd(clientSocketFd);
         return ;
     }
     if (uri.find("/cgi-bin/") != std::string::npos)
@@ -212,7 +201,7 @@ void Core::handleEvent(int clientSocketFd) {
     else
         statusCode = 405;
     close(clientSocketFd);
-    _clientSocketToPort.erase(clientSocketFd);
+    _socketManager.removeClientSocketFd(clientSocketFd);
 }
 
 void Core::executeCGI(const std::string& uri, HttpRequest &request, int clientSocketFd, Location location)
@@ -299,9 +288,7 @@ void Core::executeCGI(const std::string& uri, HttpRequest &request, int clientSo
     pollFd.revents = 0;
     _pollFds.push_back(pollFd);
     _cgiBufferTable[cgiOutPipe[0]] = "";
-	_cgiChunked[cgiOutPipe[0]] = false;
-    _cgiFdToClientFd[cgiOutPipe[0]] = clientSocketFd;
-    _clientFdToCgiFd[clientSocketFd] = cgiOutPipe[0];
+    _socketManager.connectCgiToClient(cgiOutPipe[0], clientSocketFd);
     close(cgiInPipe[1]);
 }
 
@@ -322,13 +309,8 @@ void Core::handleCgiEvent(int cgiPipeFd, int clientFd)
 {
     char buffer[BUFFER_SIZE];
     int size = read(cgiPipeFd, buffer, BUFFER_SIZE - 1);
-    if (size > 0) {	// CGI Chunked일 경우, 바디에 0 들어오면 바로 읽기 중단.
+    if (size > 0) {
 		_cgiBufferTable[cgiPipeFd] += std::string(buffer, size);
-		if (_cgiBufferTable[cgiPipeFd].find("\r\n\r\n") != std::string::npos
-				&& _cgiBufferTable[cgiPipeFd].find("Transfer-Encoding: chunked") != std::string::npos)
-		{
-			_cgiChunked[cgiPipeFd] = true;
-		}
         return;
     }
 
@@ -337,36 +319,18 @@ void Core::handleCgiEvent(int cgiPipeFd, int clientFd)
 		std::cerr << "read failed: " << strerror(errno) << '\n';
 		HttpResponse httpResponse("", HttpRequest(), 500);
 		send(clientFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-		close(cgiPipeFd);
-		_cgiBufferTable.erase(cgiPipeFd);
-		_cgiFdToClientFd.erase(cgiPipeFd);
-		_clientFdToCgiFd.erase(clientFd);
 	}
 	else
 	{
-		if (_cgiChunked[cgiPipeFd])
-		{
-			HttpResponse response(_cgiBufferTable[cgiPipeFd]);
-			std::cout << response.full.c_str() << std::endl;
-			send(clientFd, response.full.c_str(), response.full.size(), 0);
-		}
-		else
-		{
-			std::cout << "------- CGI Response -------" << std::endl;
-			std::cout << _cgiBufferTable[cgiPipeFd];
-			std::cout << "----------------------------" << std::endl;
-			_cgiBufferTable[cgiPipeFd] = "HTTP/1.1 303 See Other" + _cgiBufferTable[cgiPipeFd];
-			send(_cgiFdToClientFd[cgiPipeFd], _cgiBufferTable[cgiPipeFd].c_str(), _cgiBufferTable[cgiPipeFd].size(), 0);
-		}
-		close(cgiPipeFd);
-		close(clientFd);
-		_clientSocketToPort.erase(clientFd);
-		_cgiBufferTable.erase(cgiPipeFd);
-		_cgiChunked.erase(cgiPipeFd);
-		_cgiFdToClientFd.erase(cgiPipeFd);
-		_clientFdToCgiFd.erase(clientFd);
+        HttpResponse response(_cgiBufferTable[cgiPipeFd]);
+        std::cout << response.full.c_str() << std::endl;
+        send(clientFd, response.full.c_str(), response.full.size(), 0);
 	}
-	
+	close(cgiPipeFd);
+    close(clientFd);
+    _socketManager.removeClientSocketFd(clientFd);
+    _cgiBufferTable.erase(cgiPipeFd);
+    _socketManager.disconnectCgiToClient(cgiPipeFd);
 }
 
 void Core::getMethod(std::string& uri,
