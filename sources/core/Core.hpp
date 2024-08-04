@@ -40,7 +40,6 @@ class Core {
 
 		SocketManager _socketManager;
 
-        void setNonBlocking(int fd);
         void setUpSockets();
         void eventLoop();
         void handleEvent(int clientSocketFd);
@@ -53,7 +52,6 @@ class Core {
 
     
         std::vector<pollfd> _pollFds;
-        std::vector<int> _serverSocketFds;
 		std::map<int, std::string> _bufferTable;
         std::map<int, std::string> _cgiBufferTable;
 		std::map<int, int> _serverSocketToPort;

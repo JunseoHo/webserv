@@ -1,8 +1,6 @@
 #include <list>
 #include "../config/Config.hpp"
-#include "Service.hpp"
 #include "webserv.hpp"
-
 
 int main(int argc, char *argv[]) {
 	if (argc > 2)
@@ -17,8 +15,8 @@ int main(int argc, char *argv[]) {
 		Config config((argc == 1) ? DEFAULT_CONFIG_PATH : argv[1]);
 		std::cout << config;
 
-		Service service(config);
-		service.Start();
+		Core core(config);
+		core.Start();
 	}
 	catch (std::exception &e)
 	{

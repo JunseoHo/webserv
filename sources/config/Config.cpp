@@ -150,7 +150,7 @@ const std::vector<int> Config::GetAllListeningPorts() const
 	for (std::list<Server>::const_iterator it = _servers.begin(); it != _servers.end(); ++it)
 	{
 		// 이미 한번 삽입된 포트는 중복하여 삽입하지 않는다.
-		if (std::find(listeningPorts.begin(), listeningPorts.end(), it->listen) != listeningPorts.end())
+		if (std::find(listeningPorts.begin(), listeningPorts.end(), it->listen) == listeningPorts.end())
 			listeningPorts.push_back(it->listen);
 	}
 	return listeningPorts;

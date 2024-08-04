@@ -17,7 +17,7 @@ void Core::Start() {
 	std::map<int, int> socketFdPortMap = _socketManager.GetSocketFdPortMap();
 	int i = 0;
 	for (std::map<int, int>::iterator it = socketFdPortMap.begin(); it != socketFdPortMap.end(); ++it, ++i) {
-         _pollFds[i].fd = it->first;
+        _pollFds[i].fd = it->first;
         _pollFds[i].events = POLLIN;
         _pollFds[i].revents = 0;
 		std::cout << "File descriptor " << it->first << " is polling..." << std::endl;
@@ -38,8 +38,13 @@ void Core::eventLoop() {
         }
         for (int i = 0; i < _pollFds.size(); i++) {
             if (_pollFds[i].revents & POLLIN) {
-                if (std::find(_serverSocketFds.begin(), _serverSocketFds.end(), _pollFds[i].fd) != _serverSocketFds.end()) {  // 서버 소켓인 경우
+                if (_socketManager.isServerSocketFd(_pollFds[i].fd)) {  // 서버 소켓인 경우
                     int clientSocketFd = accept(_pollFds[i].fd, nullptr, nullptr);
+                    if (clientSocketFd == -1)
+                    {
+                        std::cerr << "accept failed: " << strerror(errno) << '\n';
+                        continue;
+                    }
                     setNonBlocking(clientSocketFd);
                     pollfd clientPollFd;
                     clientPollFd.fd = clientSocketFd;
@@ -48,9 +53,9 @@ void Core::eventLoop() {
                     _pollFds.push_back(clientPollFd);
 
                     // 클라이언트 소켓과 포트 번호 매핑 추가
-                    _clientSocketToPort[clientSocketFd] = _serverSocketToPort[_pollFds[i].fd];
+                    _socketManager.addClientSocketFd(clientSocketFd, _socketManager.GetPortBySocketFd(_pollFds[i].fd));
                     _bufferTable[clientSocketFd] = "";
-                } else if (_cgiBufferTable.find(_pollFds[i].fd) != _cgiBufferTable.end()) {
+                } else if (_cgiBufferTable.find(_pollFds[i].fd) != _cgiBufferTable.end()) { // CGI PIPE인 경우
                     handleCgiEvent(_pollFds[i].fd, _cgiFdToClientFd[_pollFds[i].fd]);
                     if (_cgiBufferTable.find(_pollFds[i].fd) == _cgiBufferTable.end()
                         && _cgiFdToClientFd.find(_pollFds[i].fd) == _cgiFdToClientFd.end()) {
@@ -95,7 +100,7 @@ std::string extractHost(const std::string& header)
     return header.substr(hostStartPos, hostEndPos - hostStartPos);
 }
 
-void Service::handleEvent(int clientSocketFd) {
+void Core::handleEvent(int clientSocketFd) {
 	char buffer[BUFFER_SIZE];
     int size = recv(clientSocketFd, buffer, BUFFER_SIZE - 1, 0);    // 클라이언트 소켓으로부터 Http 리퀘스트 내용 읽기
     if (size <= 0)
@@ -106,7 +111,7 @@ void Service::handleEvent(int clientSocketFd) {
             std::cerr << "recv failed:" << strerror(errno) << "\n";
         close(clientSocketFd);
         _bufferTable.erase(clientSocketFd);
-        _clientSocketToPort.erase(clientSocketFd); // 매핑 제거
+        _socketManager.removeClientSocketFd(clientSocketFd);
         return ;
     }
     // buffer에 읽은 내용 추가
@@ -118,7 +123,7 @@ void Service::handleEvent(int clientSocketFd) {
         return ;
 
     // 포트 번호 추출
-    int port = _clientSocketToPort[clientSocketFd];
+    int port = _socketManager.GetPortBySocketFd(clientSocketFd);
     // 헤더에서 host 추출
     std::string host = extractHost(_bufferTable[clientSocketFd]);
     Server server = config.SelectProcessingServer(host, port);
@@ -210,7 +215,7 @@ void Service::handleEvent(int clientSocketFd) {
     _clientSocketToPort.erase(clientSocketFd);
 }
 
-void Service::executeCGI(const std::string& uri, HttpRequest &request, int clientSocketFd, Location location)
+void Core::executeCGI(const std::string& uri, HttpRequest &request, int clientSocketFd, Location location)
 {
     int cgiInPipe[2];
     int cgiOutPipe[2];
@@ -300,7 +305,6 @@ void Service::executeCGI(const std::string& uri, HttpRequest &request, int clien
     close(cgiInPipe[1]);
 }
 
-
 std::string findLineWithString(const std::string& text, const std::string& s) {
     std::vector<std::string> result;
     std::istringstream stream(text);
@@ -314,7 +318,7 @@ std::string findLineWithString(const std::string& text, const std::string& s) {
     return NULL;
 }
 
-void Service::handleCgiEvent(int cgiPipeFd, int clientFd)
+void Core::handleCgiEvent(int cgiPipeFd, int clientFd)
 {
     char buffer[BUFFER_SIZE];
     int size = read(cgiPipeFd, buffer, BUFFER_SIZE - 1);
@@ -365,7 +369,7 @@ void Service::handleCgiEvent(int cgiPipeFd, int clientFd)
 	
 }
 
-void Service::getMethod(std::string& uri,
+void Core::getMethod(std::string& uri,
                         HttpRequest& httpRequest,
                         const Location& location,
                         int& statusCode,
@@ -469,7 +473,7 @@ void parse_multipart_data(const std::string& path, const std::string& body, cons
     }
 }
 
-void Service::postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd) {
+void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd) {
     int statusCode = 201;
     // POST 요청 처리
     // uri가 디렉토리인지 확인
@@ -499,7 +503,7 @@ void Service::postMethod(std::string& uri, HttpRequest& httpRequest, const Serve
     send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
 }
 
-void Service::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd) {
+void Core::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd) {
     // DELETE 요청 처리
     // uri가 존재하는지 확인
     if (access(uri.substr(1).c_str(), F_OK) == -1)

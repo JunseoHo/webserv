@@ -1,5 +1,4 @@
 #include "SocketManager.hpp"
-#include "utils.cpp"
 
 SocketManager::SocketManager() { /* DO NOTHING */}
 SocketManager::~SocketManager() { /* DO NOTHING */}
@@ -38,8 +37,8 @@ SocketManager::SocketManager(std::vector<int> ports)
         }
 
         setNonBlocking(fd);
+        addServerSockerFd(fd);
         _socketFdPortMap[fd] = port;
-
         std::cout << "Port " << port << " is listening." << std::endl;
     }
 }
@@ -49,11 +48,52 @@ SocketManager& SocketManager::operator= (const SocketManager& rhs)
 	if (this != &rhs)
 	{
 		_socketFdPortMap = rhs.GetSocketFdPortMap();
+        _serverSocketFds = rhs.GetServerSocketFds();
 	}
 	return *this;
+}
+
+void SocketManager::addServerSockerFd(int fd)
+{
+    // _serverSocketFds에 이미 fd가 있으면 추가하지 않는다.
+    if (_serverSocketFds.end() == std::find(_serverSocketFds.begin(), _serverSocketFds.end(), fd))
+        _serverSocketFds.push_back(fd);
+}
+
+void SocketManager::addClientSocketFd(int fd, int port)
+{
+    // _clientSocketFds에 이미 fd가 있으면 추가하지 않는다.
+    if (_clientSocketFds.end() == std::find(_clientSocketFds.begin(), _clientSocketFds.end(), fd))
+    {
+        _socketFdPortMap[fd] = port;
+        _clientSocketFds.push_back(fd);
+    }
+}
+
+void SocketManager::removeClientSocketFd(int fd)
+{
+    _clientSocketFds.erase(std::remove(_clientSocketFds.begin(), _clientSocketFds.end(), fd), _clientSocketFds.end());
+    _socketFdPortMap.erase(fd);
 }
 
 const std::map<int, int>& SocketManager::GetSocketFdPortMap(void) const
 {
 	return _socketFdPortMap;
+}
+
+const std::vector<int>& SocketManager::GetServerSocketFds(void) const
+{
+    return _serverSocketFds;
+}
+
+int SocketManager::GetPortBySocketFd(int fd) const
+{
+    if (_socketFdPortMap.end() == _socketFdPortMap.find(fd))
+        return -1;
+    return _socketFdPortMap.at(fd);
+}
+
+bool SocketManager::isServerSocketFd(int fd) const
+{
+    return _serverSocketFds.end() != std::find(_serverSocketFds.begin(), _serverSocketFds.end(), fd);
 }
