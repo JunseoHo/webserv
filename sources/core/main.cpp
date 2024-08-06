@@ -1,18 +1,22 @@
 #include <list>
 #include "../config/Config.hpp"
-#include "Service.hpp"
-
+#include "webserv.hpp"
 
 int main(int argc, char *argv[]) {
-	if (!validateConfig(argc, argv)) //too many arguments
+	if (argc > 2)
+	{
+		std::cerr << "Too many arguments" << std::endl;
 		return 1;
-	std::string configPath = getConfig(argc, argv);
+	}
+
+
 	try
 	{
-		Config config(configPath);
-		// config.print();
-		Service service(config);
-		service.Start();
+		Config config((argc == 1) ? DEFAULT_CONFIG_PATH : argv[1]);
+		std::cout << config;
+
+		Core core(config);
+		core.Start();
 	}
 	catch (std::exception &e)
 	{

@@ -1,45 +1,31 @@
 #include "Config.hpp"
+
 Server::Server() { /* DO NOTHING */ }
 Config::Config() { /* DO NOTHING */ }
 Config::~Config() { /* DO NOTHING */ }
 
-Config &Config::operator=(const Config& rhs) {
-	if (this != &rhs)
-		_servers = rhs._servers;
-	return *this;
-}
-
 Config::Config(const Config& other) {
 	if (this != &other)
-	*this = other;
+		*this = other;
 }
 
-static std::string trim(const std::string& str) {
-    std::string trimmed = str;
-    trimmed.erase(0, trimmed.find_first_not_of(" \t"));
-    trimmed.erase(trimmed.find_last_not_of(" \t") + 1);
-    return trimmed;
-}
-
-Config::Config(std::string &configFilePath)
+Config::Config(const std::string &configFilePath)
 {
 	std::ifstream configFile(configFilePath.c_str());
-
 	if (!configFile.is_open())
 		throw std::runtime_error("Could not open configuration file.");
 
 	std::string line, key, value;
-
 	Server* currentServer = NULL;
 	Location* currentLocation = NULL;
-	
 	bool inLocationBlock = false;
 
 	while (std::getline(configFile, line))
 	{	
 		std::istringstream iss(line);
 
-		if (line.empty()) continue;
+		if (line.empty())
+			continue;
 
 		if (line.find(':') != std::string::npos)
 		{
@@ -110,12 +96,69 @@ Config::Config(std::string &configFilePath)
 		currentServer->locations.push_back(*currentLocation);
 		delete currentLocation;
 	}
+
 	if (currentServer != NULL)
 	{
 		_servers.push_back(*currentServer);
 		delete currentServer;
 	}
+
 	configFile.close();
+}
+
+Config& Config::operator=(const Config& rhs) {
+	if (this != &rhs)
+		_servers = rhs._servers;
+	return *this;
+}
+
+const Server& Config::SelectProcessingServer(const std::string& host, int port) const
+{
+	Server* processingServer = NULL;
+	for (std::list<Server>::const_iterator it = _servers.begin(); it != _servers.end(); ++it)
+	{
+		if (it->listen == port)
+		{
+			// 만약 아래 조건문이 참인 Server가 없을 경우, 여기서 할당된 서버(디폴트 서버)가 반환된다.
+			if (processingServer == NULL)
+				processingServer = const_cast<Server*>(&(*it));
+			if (it->serverName == host)
+				return const_cast<Server &>(*it);
+		}
+	}
+	return const_cast<Server &>(*processingServer);
+}
+
+const Location& Config::FindOptimalLocation(const Server& server, const std::string& uri) const
+{
+	const Location* optimalLocation = NULL;
+	for (std::list<Location>::const_iterator it = server.locations.begin(); it != server.locations.end(); ++it)
+	{
+		const Location& location = *it;
+		if ((uri.find(location.path) == 0) 
+			&& (optimalLocation == NULL || location.path.size() > optimalLocation->path.size()))
+				optimalLocation = &location;
+	}
+	if (optimalLocation == NULL)
+		return *(server.locations.begin());
+	return *optimalLocation;
+}
+
+const std::vector<int> Config::GetAllListeningPorts() const
+{
+	std::vector<int> listeningPorts;
+	for (std::list<Server>::const_iterator it = _servers.begin(); it != _servers.end(); ++it)
+	{
+		// 이미 한번 삽입된 포트는 중복하여 삽입하지 않는다.
+		if (std::find(listeningPorts.begin(), listeningPorts.end(), it->listen) == listeningPorts.end())
+			listeningPorts.push_back(it->listen);
+	}
+	return listeningPorts;
+}
+
+const std::list<Server> Config::GetServers(void) const
+{
+	return _servers;
 }
 
 const char* Config::InvalidConfigFormatException::what() const throw()
@@ -123,79 +166,44 @@ const char* Config::InvalidConfigFormatException::what() const throw()
 	return "Configuration file format is incorrect.";
 }
 
-std::vector<int> Config::getPorts() const {
-	std::vector<int> ports;
-	for (std::list<Server>::const_iterator it = _servers.begin(); it != _servers.end(); ++it)
-		ports.push_back(it->listen);
-	return ports;
-}
-
-Server& Config::selectServer(std::string& host, int port) const {
-	Server* defaultServer = NULL;
-	for (std::list<Server>::const_iterator it = _servers.begin(); it != _servers.end(); ++it)
-	{
-		if (it->listen == port)
-		{
-			if (defaultServer == NULL)
-				defaultServer = const_cast<Server*>(&(*it));
-			if (it->serverName == host)
-				return const_cast<Server &>(*it);
-		}
-	}
-	return const_cast<Server &>(*defaultServer);
-}
-
-const Location& Config::findLocation(const Server& server, const std::string& uri) const {
-	// 가장 길게 매칭되는 location을 찾아서 반환
-	const Location* longestMatch = NULL;
-	for (std::list<Location>::const_iterator it = server.locations.begin(); it != server.locations.end(); ++it)
-	{
-		const Location& location = *it;
-		if (uri.find(location.path) == 0)
-		{
-			if (longestMatch == NULL || location.path.size() > longestMatch->path.size())
-				longestMatch = &location;
-		}
-	}
-	if (longestMatch == NULL)
-		return *(server.locations.begin());
-	return *longestMatch;
-}
-
-void Config::print(void) const
+std::string Config::trim(const std::string& str) const
 {
-	for (std::list<Server>::const_iterator it = _servers.begin(); it != _servers.end(); ++it)
-	{
-		std::cout << "[Server Instance]\n";
-	    std::cout << "\tListen: " << it->listen << "\n";
-	    std::cout << "\tServer Name: " << it->serverName << "\n";
-	    std::cout << "\tError Page: " << it->errorPage << "\n";
-	    std::cout << "\tClient Max Body Size: " << it->clientMaxBodySize << "\n";
-	    std::cout << "\tRoot: " << it->root << "\n";
-		it->locations.begin();
-	    for (std::list<Location>::const_iterator it2 = it->locations.begin(); it2 != it->locations.end(); ++it2) {
-	        const Location& location = *it2;
-			std::cout << "\tLocation:\n";
-			std::cout << "\t\tAccepted HTTP Methods: " << location.acceptedHttpMethods << "\n";
-	        std::cout << "\t\tPath: " << location.path << "\n";
-	        std::cout << "\t\tIndex: " << location.index << "\n";
-	        std::cout << "\t\tAutoindex: " << (location.autoIndex ? "on" : "off") << "\n";
-	    }
-		std::cout << "\n";
-	}
+    std::string trimmed = str;
+    trimmed.erase(0, trimmed.find_first_not_of(" \t"));
+    trimmed.erase(trimmed.find_last_not_of(" \t") + 1);
+    return trimmed;
 }
 
-bool validateConfig(int argc, char *argv[]) {
-	if (argc > 2)
+std::ostream& operator<<(std::ostream& os, const Config& config)
+{
+	os << "***********************************************************************" << std::endl;
+	os << "***********************      Configuration      ***********************" << std::endl;
+	os << "***********************************************************************" << std::endl << std::endl;
+	const std::list<Server> servers = config.GetServers();
+	for (std::list<Server>::const_iterator serverIt = servers.begin(); serverIt != servers.end(); ++serverIt)
 	{
-		std::cerr << "Too many arguments" << std::endl;
-		return false;
+		os << "Server Name          : " << serverIt->serverName << std::endl;
+		os << "Listen               : " << serverIt->listen << std::endl;
+		os << "Client Max Body Size : " << serverIt->clientMaxBodySize << std::endl;
+		os << "Error Page           : " << serverIt->errorPage << std::endl;
+		os << "Root                 : " << serverIt->root << std::endl;
+		os << "Location             : [" << std::endl;
+		for (std::list<Location>::const_iterator locIt = serverIt->locations.begin(); locIt != serverIt->locations.end(); )
+		{
+			os << "\t" << "{" << std::endl;
+			os << "\t\t" << "Path                  :" << locIt->path << std::endl;
+			os << "\t\t" << "Index                 :" << locIt->index << std::endl;
+			os << "\t\t" << "Auto Index            :" << locIt->autoIndex << std::endl;
+			os << "\t\t" << "Accepted Http Methods :" << locIt->acceptedHttpMethods << std::endl;
+			os << "\t\t" << "CGI Path              :" << locIt->cgiPath << std::endl;
+			os << "\t" << "}";
+			++locIt;
+			if (locIt != serverIt->locations.end())
+				os << ",";
+			os << "\t" << std::endl;
+		}
+		os << "]" << std::endl;
+		os << std::endl << "***********************************************************************" << std::endl << std::endl;
 	}
-	return true;
-}
-
-std::string getConfig(int argc, char *argv[]) {
-	if (argc == 1)
-		return std::string("conf/default.yml");
-	return std::string(argv[1]);
+	return os;
 }
