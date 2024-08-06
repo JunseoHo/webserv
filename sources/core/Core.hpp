@@ -42,6 +42,7 @@ class Core {
 		SocketManager _socketManager;
         BufferManager _bufferManager;
         BufferManager _cgiBufferManager;
+        BufferManager _responseBufferManager;
 
         void setUpSockets();
         void eventLoop();
@@ -52,7 +53,7 @@ class Core {
                         HttpRequest& httpRequest, const Location& location, int& statusCode, int& clientSocketFd, Server& server);
         void postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd);
         void deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd);
-
+        void handleOutEvent(int clientSocketFd);
     
         std::vector<pollfd> _pollFds;
 };

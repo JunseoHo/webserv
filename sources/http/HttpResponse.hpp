@@ -27,7 +27,6 @@ class HttpResponse : public Http
 
 		unsigned int statusCode;
 		std::string message;
-		std::string response;
 };
 
 #endif

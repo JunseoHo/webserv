@@ -5,8 +5,6 @@
 # include <iostream>
 # include "../utils/utils.h"
 
-# define BACK_LOG 10
-
 class BufferManager
 {
 	public:
@@ -20,6 +18,7 @@ class BufferManager
         void removeBufferFront(int fd, ssize_t size);
 
         const std::string& GetBuffer(int fd) const;
+        std::string GetSubBuffer(int fd, ssize_t size) const;
 
         const std::map<int, std::string>& GetBufferTable(void) const;
 

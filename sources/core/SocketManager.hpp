@@ -9,7 +9,7 @@
 # include <poll.h>
 # include "../utils/utils.h"
 
-# define BACK_LOG 10
+# define BACK_LOG 20
 
 class SocketManager
 {
@@ -20,7 +20,7 @@ class SocketManager
 		~SocketManager();
 
 		pollfd newClientPollfd(int serverFd);
-		
+
 		void addServerSockerFd(int fd);
 		void addClientSocketFd(int fd, int port);
 		void removeClientSocketFd(int fd);
