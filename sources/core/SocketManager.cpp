@@ -68,7 +68,7 @@ pollfd SocketManager::newClientPollfd(int serverFd)
     addClientSocketFd(clientFd, GetPortBySocketFd(serverFd));
     pollfd pollFd;
     pollFd.fd = clientFd;
-    pollFd.events = POLLIN | POLLOUT;
+    pollFd.events = POLLIN;
     pollFd.revents = 0;
     return pollFd;
 }
