@@ -8,6 +8,8 @@ server:
     allow_methods: GET
     index: index.html
     autoindex: on
+    client_max_body_size: 100
+    error_page: error.html
   location: /guide
     allow_methods: GET
     autoindex: off

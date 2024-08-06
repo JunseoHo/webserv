@@ -9,7 +9,7 @@ Core::Core(const Config &config)
     _pollFds.resize(config.GetAllListeningPorts().size());
 }
 
-Core& Core::operator= (const Core& rhs) { /* THIS IS PRIVATE */ }
+Core& Core::operator= (const Core& rhs) { /* THIS IS PRIVATE */ return *this; }
 
 void Core::Start() {
 	_socketManager = SocketManager(config.GetAllListeningPorts());
@@ -136,19 +136,6 @@ void Core::handleEvent(int clientSocketFd) {
     size_t contentLength = contentLengthString.empty() ? 0 : std::stoi(contentLengthString);
     size_t totalLength = headerEndPos + 4 + contentLength;
 
-    // clientMaxBodySize가 0이 아닌 경우, body size 체크, 초과시 413
-    if (server.clientMaxBodySize != 0 && contentLength > server.clientMaxBodySize)
-    {
-        // 413 error
-        HttpRequest httpRequest;
-        httpRequest.parse(_bufferManager.GetBuffer(clientSocketFd).substr(0, headerEndPos));
-        HttpResponse httpResponse(server.root + "/" + server.errorPage, httpRequest, 413);
-        _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
-        // body가 큰 경우 client를 차단
-        _bufferManager.removeBuffer(clientSocketFd);
-        return ;
-    }
-
     // 헤더와 바디가 모두 받아졌는지 확인
     if (totalLength > _bufferManager.GetBuffer(clientSocketFd).size())
         return ;
@@ -179,7 +166,7 @@ void Core::handleEvent(int clientSocketFd) {
         statusCode = 405;
     }
 
-    std::string uri = server.root + httpRequest.target;
+    std::string uri = location.root + httpRequest.target;
     std::string target = uri.find("?") != std::string::npos ? uri.substr(0, uri.find("?")) : uri;
 
     if (access(target.substr(1).c_str(), F_OK) == -1 && uri.find("/cgi-bin/") == std::string::npos)
@@ -188,26 +175,21 @@ void Core::handleEvent(int clientSocketFd) {
     if (statusCode != 200)
     {
         std::cerr << "Status code: " << statusCode << std::endl;
-        uri = server.root + "/" + server.errorPage;
+        uri = location.root + "/" + location.errorPage;
         HttpResponse httpResponse(uri, httpRequest, statusCode);
         _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
         return ;
     }
     if (uri.find("/cgi-bin/") != std::string::npos)
-    {
         executeCGI(uri.substr(1), httpRequest, clientSocketFd, location);
-        return ;
-    }
     else if (httpRequest.method == GET)
-        getMethod(uri, httpRequest, location, statusCode, clientSocketFd, server);
+        getMethod(uri, httpRequest, location, statusCode, clientSocketFd);
     else if (httpRequest.method == POST)
-        postMethod(uri, httpRequest, server, location, clientSocketFd);
+        postMethod(uri, httpRequest, location, clientSocketFd);
     else if (httpRequest.method == DELETE)
         deleteMethod(uri, httpRequest, statusCode, clientSocketFd);
     else
         statusCode = 405;
-    // close(clientSocketFd);
-    // _socketManager.removeClientSocketFd(clientSocketFd);
 }
 
 void Core::executeCGI(const std::string& uri, HttpRequest &request, int clientSocketFd, Location location)
@@ -338,16 +320,7 @@ void Core::getMethod(std::string& uri,
                         HttpRequest& httpRequest,
                         const Location& location,
                         int& statusCode,
-                        int& clientSocketFd,
-                        Server& server) {
-    /*
-        1. uri가 디렉토리인지 확인
-        1-1. 디렉토리인 경우
-            uri가 /로 끝나지 않는 경우 403
-            index 존재
-            autoindex가 true인 경우
-        1-2. 디렉토리가 아닌 경우
-    */
+                        int& clientSocketFd) {
     if (isDirectory(uri.substr(1))) {
         if (uri.back() != '/')
             statusCode = 404;
@@ -367,9 +340,13 @@ void Core::getMethod(std::string& uri,
             statusCode = 404;
     }
 
+    // clientMaxBodySize가 0이 아닌 경우, body size 체크, 초과시 413
+    if (location.clientMaxBodySize != 0 && std::stoi(httpRequest.headers["Content-Length"]) > location.clientMaxBodySize)
+        statusCode = 413;
+
     if (statusCode != 200)
     {
-        uri = server.root + "/" + server.errorPage;
+        uri = location.root + "/" + location.errorPage;
         HttpResponse httpResponse(uri, httpRequest, statusCode);
         _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
         return;
@@ -379,7 +356,7 @@ void Core::getMethod(std::string& uri,
     _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
 }
 
-void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd) {
+void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location& location, int& clientSocketFd) {
     int statusCode = 201;
     // POST 요청 처리
     // uri가 디렉토리인지 확인
@@ -389,7 +366,7 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Server& 
     std::cout << contentType << std::endl;
     if (contentType.find("multipart/form-data") != std::string::npos) {
         std::string boundary = "--" + contentType.substr(contentType.find("boundary=") + 9);
-        std::string path = server.root + location.path;
+        std::string path = location.root + location.path;
         if (isDirectory(path.substr(1)))
         {
             std::cout << "Multipart data received" << std::endl;

@@ -11,11 +11,14 @@
 
 struct Location
 {
+	std::string	root;
 	std::string	path;
 	int			acceptedHttpMethods;
+	int 		clientMaxBodySize;
 	bool		autoIndex;
 	std::string index;
 	std::string cgiPath;
+	std::string	errorPage;
 };
 
 struct Server
