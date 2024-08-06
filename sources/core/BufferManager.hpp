@@ -20,6 +20,7 @@ class BufferManager
         void removeBufferFront(int fd, ssize_t size);
 
         const std::string& GetBuffer(int fd) const;
+        const std::string& GetSubBuffer(int fd, ssize_t size) const;
 
         const std::map<int, std::string>& GetBufferTable(void) const;
 

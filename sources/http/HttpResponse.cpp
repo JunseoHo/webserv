@@ -173,7 +173,7 @@ void HttpResponse::setResponse(const std::string& uri, const HttpRequest &reques
         break;
     }
 
-    response = version + " " + std::to_string(statusCode) + " " + message + "\r\n";
+    full = version + " " + std::to_string(statusCode) + " " + message + "\r\n";
 
     std::cout << "URL RESPOJSE:" << uri << std::endl;
 
@@ -208,6 +208,6 @@ void HttpResponse::setResponse(const std::string& uri, const HttpRequest &reques
     headers["Connection"] = "keep-alive";
 
     for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); it++)
-        response += it->first + ": " + it->second + "\r\n";
-    response += "\r\n" + body;
+        full += it->first + ": " + it->second + "\r\n";
+    full += "\r\n" + body;
 }

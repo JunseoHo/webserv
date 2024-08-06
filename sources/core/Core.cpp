@@ -42,24 +42,69 @@ void Core::eventLoop() {
                         _bufferManager.addBuffer(clientPollFd.fd);
                     } else if (_socketManager.isConnectedCgiToClient(_pollFds[i].fd)) { // CGI PIPE인 경우
                         handleCgiEvent(_pollFds[i].fd, _socketManager.GetClientFdByCgiFd(_pollFds[i].fd));
-                        if (_cgiBufferManager.isBufferEmpty(_pollFds[i].fd)
-                            && !_socketManager.isConnectedCgiToClient(_pollFds[i].fd)) {
-                            _pollFds.erase(_pollFds.begin() + i);
-                            --i;
-                        }
+                        // if (_cgiBufferManager.isBufferEmpty(_pollFds[i].fd)
+                        //     && !_socketManager.isConnectedCgiToClient(_pollFds[i].fd)) {
+                        //     _pollFds.erase(_pollFds.begin() + i);
+                        //     --i;
+                        // }
                     } else if (!_socketManager.isConnectedClinetToCgi(_pollFds[i].fd)) {  // 클라이언트 소켓인 경우
                         handleEvent(_pollFds[i].fd);
-                        if (_bufferManager.isBufferEmpty(_pollFds[i].fd)
-                            && !_socketManager.isConnectedClinetToCgi(_pollFds[i].fd)) {
-                            _pollFds.erase(_pollFds.begin() + i);
-                            --i;
-                        }
+                        // if (_bufferManager.isBufferEmpty(_pollFds[i].fd)
+                        //     && !_socketManager.isConnectedClinetToCgi(_pollFds[i].fd)) {
+                        //     _pollFds.erase(_pollFds.begin() + i);
+                        //     --i;
+                        // }
                     }
+                }
+                if (_pollFds[i].revents & POLLOUT) {
+                    handleOutEvent(_pollFds[i].fd);
+                    // if (_responseBufferManager.isBufferEmpty(_pollFds[i].fd)) {
+                    //     _pollFds.erase(_pollFds.begin() + i);
+                    //     --i;
+                    // }
                 }
             }
         } catch (std::exception &e) {
             std::cerr << e.what() << std::endl;
         }
+    }
+}
+
+void Core::handleOutEvent(int clientSocketFd) {
+    if (_responseBufferManager.isBufferEmpty(clientSocketFd))
+        return ;
+    std::string response = _responseBufferManager.GetSubBuffer(clientSocketFd, BUFFER_SIZE);
+    std::cout << response << std::endl;
+    ssize_t size = write(clientSocketFd, response.c_str(), response.size());
+    if (size < 0)
+    {
+        close(clientSocketFd);
+        _responseBufferManager.removeBuffer(clientSocketFd);
+        _socketManager.removeClientSocketFd(clientSocketFd);
+        return ;
+    }
+    else if (size == 0)
+    {
+        close(clientSocketFd);
+        _responseBufferManager.removeBuffer(clientSocketFd);
+        _socketManager.removeClientSocketFd(clientSocketFd);   
+        return ;
+    }
+    if (size != response.size())
+    {
+        close(clientSocketFd);
+        _responseBufferManager.removeBuffer(clientSocketFd);
+        _socketManager.removeClientSocketFd(clientSocketFd);
+        return ;
+    }
+
+    _responseBufferManager.removeBufferFront(clientSocketFd, size);
+
+    if (_responseBufferManager.isBufferEmpty(clientSocketFd))
+    {
+        close(clientSocketFd);
+        _responseBufferManager.removeBuffer(clientSocketFd);
+        _socketManager.removeClientSocketFd(clientSocketFd);
     }
 }
 
@@ -105,7 +150,7 @@ void Core::handleEvent(int clientSocketFd) {
         HttpRequest httpRequest;
         httpRequest.parse(_bufferManager.GetBuffer(clientSocketFd).substr(0, headerEndPos));
         HttpResponse httpResponse(server.root + "/" + server.errorPage, httpRequest, 413);
-        send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+        send(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size(), 0);
         // body가 큰 경우 client를 차단
         close(clientSocketFd);
         _bufferManager.removeBuffer(clientSocketFd);
@@ -155,11 +200,12 @@ void Core::handleEvent(int clientSocketFd) {
         uri = server.root + "/" + server.errorPage;
         HttpResponse httpResponse(uri, httpRequest, statusCode);
         std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
-        std::cout << httpResponse.response;
+        std::cout << httpResponse.full;
         std::cout << std::endl << "=============================" << std::endl << std::endl;
-        send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
-        close(clientSocketFd);
-        _socketManager.removeClientSocketFd(clientSocketFd);
+        _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+        // send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+        // close(clientSocketFd);
+        // _socketManager.removeClientSocketFd(clientSocketFd);
         return ;
     }
     if (uri.find("/cgi-bin/") != std::string::npos)
@@ -175,8 +221,8 @@ void Core::handleEvent(int clientSocketFd) {
         deleteMethod(uri, httpRequest, statusCode, clientSocketFd);
     else
         statusCode = 405;
-    close(clientSocketFd);
-    _socketManager.removeClientSocketFd(clientSocketFd);
+    // close(clientSocketFd);
+    // _socketManager.removeClientSocketFd(clientSocketFd);
 }
 
 void Core::executeCGI(const std::string& uri, HttpRequest &request, int clientSocketFd, Location location)
@@ -255,8 +301,14 @@ void Core::executeCGI(const std::string& uri, HttpRequest &request, int clientSo
     close(cgiInPipe[0]);
     close(cgiOutPipe[1]);
     // request 전문을 파이프로 전달
-    if (request.method == POST)
-        write(cgiInPipe[1], request.full.c_str(), request.full.size());
+    if (request.method == POST) {
+        pollfd pollFdOut;
+        pollFdOut.fd = cgiInPipe[1];
+        pollFdOut.events = POLLOUT;
+        pollFdOut.revents = 0;
+        _pollFds.push_back(pollFdOut);
+        _responseBufferManager.appendBuffer(cgiInPipe[1], request.full.c_str(), request.full.size());
+    }
     pollfd pollFd;
     pollFd.fd = cgiOutPipe[0];
     pollFd.events = POLLIN;
@@ -264,7 +316,6 @@ void Core::executeCGI(const std::string& uri, HttpRequest &request, int clientSo
     _pollFds.push_back(pollFd);
     _cgiBufferManager.addBuffer(cgiOutPipe[0]);
     _socketManager.connectCgiToClient(cgiOutPipe[0], clientSocketFd);
-    close(cgiInPipe[1]);
 }
 
 void Core::handleCgiEvent(int cgiPipeFd, int clientFd)
@@ -280,19 +331,21 @@ void Core::handleCgiEvent(int cgiPipeFd, int clientFd)
 	{
 		std::cerr << "read failed: " << strerror(errno) << '\n';
 		HttpResponse httpResponse("", HttpRequest(), 500);
-		send(clientFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+		send(clientFd, httpResponse.full.c_str(), httpResponse.full.size(), 0);
 	}
 	else
 	{
         HttpResponse response(_cgiBufferManager.GetBuffer(cgiPipeFd));
         std::cout << response.full.c_str() << std::endl;
-        send(clientFd, response.full.c_str(), response.full.size(), 0);
+        _responseBufferManager.appendBuffer(clientFd, response.full.c_str(), response.full.size());
+        // send(clientFd, response.full.c_str(), response.full.size(), 0);
 	}
 	close(cgiPipeFd);
     close(clientFd);
     _socketManager.removeClientSocketFd(clientFd);
     _cgiBufferManager.removeBuffer(cgiPipeFd);
     _socketManager.disconnectCgiToClient(cgiPipeFd);
+
 }
 
 void Core::getMethod(std::string& uri,
@@ -335,19 +388,21 @@ void Core::getMethod(std::string& uri,
         std::cout << std::endl
                   << "========== Response =========" << std::endl
                   << std::endl;
-        std::cout << httpResponse.response;
+        std::cout << httpResponse.full;
         std::cout << std::endl
                   << "=============================" << std::endl
                   << std::endl;
-        send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+        _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+        // send(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size(), 0);
         return;
     }
 
     HttpResponse httpResponse(uri, httpRequest, statusCode);
     std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
-    std::cout << httpResponse.response;
+    std::cout << httpResponse.full;
     std::cout << std::endl << "=============================" << std::endl << std::endl;
-    send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+    _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+    // send(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size(), 0);
 }
 
 void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd) {
@@ -375,9 +430,10 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Server& 
         statusCode = 400;
     HttpResponse httpResponse(uri, httpRequest, statusCode);
     std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
-    std::cout << httpResponse.response;
+    std::cout << httpResponse.full;
     std::cout << std::endl << "=============================" << std::endl << std::endl;
-    send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+    _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+    // send(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size(), 0);
 }
 
 void Core::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd) {
@@ -389,7 +445,8 @@ void Core::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusC
         remove(uri.substr(1).c_str());
     HttpResponse httpResponse(uri, httpRequest, statusCode);
     std::cout << std::endl << "========== Response =========" << std::endl << std::endl;
-    std::cout << httpResponse.response;
+    std::cout << httpResponse.full;
     std::cout << std::endl << "=============================" << std::endl << std::endl;
-    send(clientSocketFd, httpResponse.response.c_str(), httpResponse.response.size(), 0);
+    _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+    // send(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size(), 0);
 }
