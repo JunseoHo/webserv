@@ -1,12 +1,10 @@
 #!/usr/bin/python3
 
 import cgi
-import cgitb
 import os
 import datetime
 
 # Enable debugging
-cgitb.enable()
 
 # Get form data
 form = cgi.FieldStorage()
@@ -36,7 +34,8 @@ elif operation == "divide":
         result = "Error: Division by zero"
 
 # Print the HTTP headers and the HTML content
-print("Content-type: text/html\r\n\r\n")
+print("Content-type: text/html")
+print("Status: 200 OK", end="\r\n\r\n")
 print("<html>")
 print("<head>")
 print("<title>Simple Calculator</title>")
@@ -68,6 +67,8 @@ print("""
 # Display the result if available
 if result is not None:
     print("<h2>Result: {}</h2>".format(result))
+
+print(f"{form.getvalue('num1')} {form.getvalue('operation')} {form.getvalue('num2')} = {result}")
 
 print("</body>")
 print("</html>")

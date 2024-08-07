@@ -49,6 +49,10 @@ HttpResponse::HttpResponse(const std::string& cgiResponse)
             modifiedHeader += line + "\r\n";
         }
     }
+    
+    if (!statusModified) {
+        modifiedHeader = "HTTP/1.1 200 OK\r\n" + modifiedHeader;
+    }
 
     // 3. 두번째 부분은 문자열의 길이와 문자열의 내용이 번갈아 가면서 작성되어 있다. 내용을 하나로 합쳐라.
     std::string mergedBody;

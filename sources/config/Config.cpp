@@ -48,17 +48,33 @@ Config::Config(const std::string &configFilePath)
 					delete currentServer;
 				}
 				currentServer = new Server();
+				currentServer->errorPage = DEFAULT_ERROR_PAGE;
 			}
 			else if (key == "listen")
 				currentServer->listen = std::stoi(value);
 			else if (key == "server_name")
 				currentServer->serverName = value;
 			else if (key == "error_page")
-				currentServer->errorPage = value;
+			{
+				if (currentLocation != NULL)
+					currentLocation->errorPage = value;
+				else
+					currentServer->errorPage = value;
+			}
 			else if (key == "client_max_body_size")
-				currentServer->clientMaxBodySize = std::stoi(value);
+			{
+				if (currentLocation != NULL)
+					currentLocation->clientMaxBodySize = std::stoi(value);
+				else
+					currentServer->clientMaxBodySize = std::stoi(value);
+			}
 			else if (key == "root")
-				currentServer->root = value;
+			{
+				if (currentLocation != NULL)
+					currentLocation->root = value;
+				else
+					currentServer->root = value;
+			}
 			else if (key == "path")
 				currentLocation->path = value;
 			else if (key == "allow_methods")
@@ -85,6 +101,9 @@ Config::Config(const std::string &configFilePath)
 				}
 				currentLocation = new Location();
 				currentLocation->path = value;
+				currentLocation->root = currentServer->root;
+				currentLocation->clientMaxBodySize = currentServer->clientMaxBodySize;
+				currentLocation->errorPage = currentServer->errorPage;
 			}
 		}
 		else
@@ -191,11 +210,14 @@ std::ostream& operator<<(std::ostream& os, const Config& config)
 		for (std::list<Location>::const_iterator locIt = serverIt->locations.begin(); locIt != serverIt->locations.end(); )
 		{
 			os << "\t" << "{" << std::endl;
+			os << "\t\t" << "Root                  :" << locIt->root << std::endl;
 			os << "\t\t" << "Path                  :" << locIt->path << std::endl;
 			os << "\t\t" << "Index                 :" << locIt->index << std::endl;
 			os << "\t\t" << "Auto Index            :" << locIt->autoIndex << std::endl;
 			os << "\t\t" << "Accepted Http Methods :" << locIt->acceptedHttpMethods << std::endl;
 			os << "\t\t" << "CGI Path              :" << locIt->cgiPath << std::endl;
+			os << "\t\t" << "Error Page            :" << locIt->errorPage << std::endl;
+			os << "\t\t" << "Client Max Body Size  :" << locIt->clientMaxBodySize << std::endl;
 			os << "\t" << "}";
 			++locIt;
 			if (locIt != serverIt->locations.end())

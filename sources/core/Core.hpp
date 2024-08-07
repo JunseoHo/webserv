@@ -47,11 +47,11 @@ class Core {
         void setUpSockets();
         void eventLoop();
         void handleEvent(int clientSocketFd);
-        void executeCGI(const std::string& uri, HttpRequest &request, int clientSocketFd, Location location);
+        void executeCGI(std::string uri, HttpRequest &request, int clientSocketFd, Location location);
         void handleCgiEvent(int cgiPipeFd, int clientFd);
         void getMethod(std::string& uri, 
-                        HttpRequest& httpRequest, const Location& location, int& statusCode, int& clientSocketFd, Server& server);
-        void postMethod(std::string& uri, HttpRequest& httpRequest, const Server& server, const Location& location, int& clientSocketFd);
+                        HttpRequest& httpRequest, const Location& location, int& statusCode, int& clientSocketFd);
+        void postMethod(std::string& uri, HttpRequest& httpRequest, const Location& location, int& clientSocketFd);
         void deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd);
         void handleOutEvent(int clientSocketFd);
     

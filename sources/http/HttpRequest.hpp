@@ -4,6 +4,7 @@
 
 enum EHttpMethod
 {
+	UNKNOWN = 0,
 	GET = 1 << 0,
 	POST = 1 << 1,
 	DELETE = 1 << 2
@@ -21,7 +22,7 @@ class HttpRequest : public Http
 		EHttpMethod method;
 		std::string target;
 
-		bool parse(const std::string& s);
+		void parse(const std::string& s);
 		std::string getValue(const std::string& key);
 };
 

@@ -9,13 +9,18 @@
 # include <vector>
 # include "../http/HttpRequest.hpp"
 
+# define DEFAULT_ERROR_PAGE "error.html"
+
 struct Location
 {
+	std::string	root;
 	std::string	path;
 	int			acceptedHttpMethods;
+	int 		clientMaxBodySize;
 	bool		autoIndex;
 	std::string index;
 	std::string cgiPath;
+	std::string	errorPage;
 };
 
 struct Server
