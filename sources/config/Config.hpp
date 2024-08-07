@@ -9,6 +9,8 @@
 # include <vector>
 # include "../http/HttpRequest.hpp"
 
+# define DEFAULT_ERROR_PAGE "error.html"
+
 struct Location
 {
 	std::string	root;

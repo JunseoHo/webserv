@@ -48,6 +48,7 @@ Config::Config(const std::string &configFilePath)
 					delete currentServer;
 				}
 				currentServer = new Server();
+				currentServer->errorPage = DEFAULT_ERROR_PAGE;
 			}
 			else if (key == "listen")
 				currentServer->listen = std::stoi(value);

@@ -103,13 +103,17 @@ void Core::handleOutEvent(int clientSocketFd) {
 
 void Core::handleEvent(int clientSocketFd) {
 	char buffer[BUFFER_SIZE];
-    ssize_t size = recv(clientSocketFd, buffer, BUFFER_SIZE - 1, 0);    // 클라이언트 소켓으로부터 Http 리퀘스트 내용 읽기
+    ssize_t size = read(clientSocketFd, buffer, BUFFER_SIZE - 1);    // 클라이언트 소켓으로부터 Http 리퀘스트 내용 읽기
     if (size <= 0)
     {
-        if (size == 0)
-            std::cout << "client disconnected\n";
-        else
-            std::cerr << "recv failed:" << strerror(errno) << "\n";
+        for (int i = 0; i < _pollFds.size(); i++)
+        {
+            if (_pollFds[i].fd == clientSocketFd)
+            {
+                _pollFds.erase(_pollFds.begin() + i);
+                break;
+            }
+        }
         close(clientSocketFd);
         _bufferManager.removeBuffer(clientSocketFd);
         _socketManager.removeClientSocketFd(clientSocketFd);
@@ -169,12 +173,11 @@ void Core::handleEvent(int clientSocketFd) {
     std::string uri = location.root + httpRequest.target;
     std::string target = uri.find("?") != std::string::npos ? uri.substr(0, uri.find("?")) : uri;
 
-    if (access(target.substr(1).c_str(), F_OK) == -1 && uri.find("/cgi-bin/") == std::string::npos)
+    if (access(target.substr(1).c_str(), F_OK) == -1 && (uri.find("/cgi-bin/") == std::string::npos || httpRequest.target.find("/cgi-bin/") != 0))
         statusCode = 404;
 
     if (statusCode != 200)
     {
-        std::cerr << "Status code: " << statusCode << std::endl;
         uri = location.root + "/" + location.errorPage;
         HttpResponse httpResponse(uri, httpRequest, statusCode);
         _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
@@ -192,8 +195,39 @@ void Core::handleEvent(int clientSocketFd) {
         statusCode = 405;
 }
 
-void Core::executeCGI(const std::string& uri, HttpRequest &request, int clientSocketFd, Location location)
+void Core::executeCGI(std::string uri, HttpRequest &request, int clientSocketFd, Location location)
 {
+
+    std::string scriptPath = uri.substr(0, uri.find(".py") + 3);
+    std::string pathInfo = uri.substr(uri.find(".py") + 3, uri.find("?") - uri.find(".py") - 3);
+    std::string queryString = uri.substr(uri.find("?") + 1);
+
+    std::string interpreter = location.cgiPath;
+    std::string script = uri.substr(uri.find("cgi-bin/") + 8);
+
+    std::cerr << "scriptPath: " << scriptPath << '\n';
+    std::cerr << "pathInfo: " << pathInfo << '\n';
+    std::cerr << "queryString: " << queryString << '\n';
+    std::cerr << "interpreter: " << interpreter << '\n';
+    std::cerr << "script: " << script << '\n';
+    std::cerr << "uri: " << uri << '\n';
+
+    if (script.empty() && !location.index.empty())
+        script = location.index;
+    else if (script.empty() && location.index.empty())
+    {
+        HttpResponse httpResponse(location.root + "/" + location.errorPage, request, 404);
+        _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+        return;
+    }
+
+    if (access(("cgi-bin/" + script).c_str(), F_OK) == -1 || script.find(".py") == std::string::npos)
+    {
+        HttpResponse httpResponse(location.root + "/" + location.errorPage, request, 404);
+        _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+        return;
+    }
+
     int cgiInPipe[2];
     int cgiOutPipe[2];
     if (pipe(cgiInPipe) == -1)
@@ -227,14 +261,7 @@ void Core::executeCGI(const std::string& uri, HttpRequest &request, int clientSo
         close(cgiInPipe[0]);
         close(cgiOutPipe[1]);
 
-        std::string scriptPath = uri.substr(0, uri.find(".py") + 3);
-        std::string pathInfo = uri.substr(uri.find(".py") + 3, uri.find("?") - uri.find(".py") - 3);
-        std::string queryString = uri.substr(uri.find("?") + 1);
-
-        std::string interpreter = location.cgiPath;
-        std::string script = uri.substr(uri.find("cgi-bin/") + 8);
-        if (script.empty())
-            script = "time.py";
+        
         char **args = (char **)malloc(sizeof(char *) * 3);
         args[0] = strdup(interpreter.c_str());
         args[1] = strdup(("cgi-bin/" + script).c_str());
@@ -272,7 +299,7 @@ void Core::executeCGI(const std::string& uri, HttpRequest &request, int clientSo
         pollFdOut.events = POLLOUT;
         pollFdOut.revents = 0;
         _pollFds.push_back(pollFdOut);
-        _responseBufferManager.appendBuffer(cgiInPipe[1], request.full.c_str(), request.full.size());
+        _responseBufferManager.appendBuffer(cgiInPipe[1], request.body.c_str(), request.body.size());
     }
     pollfd pollFd;
     pollFd.fd = cgiOutPipe[0];
@@ -341,8 +368,12 @@ void Core::getMethod(std::string& uri,
     }
 
     // clientMaxBodySize가 0이 아닌 경우, body size 체크, 초과시 413
-    if (location.clientMaxBodySize != 0 && std::stoi(httpRequest.headers["Content-Length"]) > location.clientMaxBodySize)
-        statusCode = 413;
+    if (location.clientMaxBodySize != 0 && httpRequest.headers.find("Content-Length") != httpRequest.headers.end())
+    {
+        size_t contentLength = std::stoi(httpRequest.headers["Content-Length"]);
+        if (contentLength > location.clientMaxBodySize)
+            statusCode = 413;
+    }
 
     if (statusCode != 200)
     {
