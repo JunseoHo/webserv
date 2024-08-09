@@ -1,6 +1,6 @@
 server:
   listen: 10028
-  server_name: www.example.com
+  server_name: yaggoman.com:10028
   error_page: error.html
   client_max_body_size: 0
   root: /resources
@@ -36,13 +36,13 @@ server:
     autoindex: off
 
 server:
-  listen: 10029
-  server_name: www.example.org
+  listen: 10028
+  server_name: yaggoman.org:10028
   error_page: error.html
   client_max_body_size: 0
   root: /resources
   location: /
-    allow_methods: GET
+    allow_methods: POST
     index: index.html
     autoindex: on
   location: /guide
