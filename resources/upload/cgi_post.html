@@ -3,13 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <title>Upload File</title>
+    <style>
+        /* 스타일을 추가하여 비활성화된 버튼에 대해 시각적으로 구분할 수 있습니다. */
+        .disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
 </head>
 <body>
     <h2>Upload File</h2>
     <form enctype="multipart/form-data" action="/cgi-bin/submit.py" method="post">
-        <input type="file" name="file" />
-        <input type="submit" value="Upload" />
+        <input type="file" name="file" id="file-input" />
+        <input type="submit" value="Upload" id="upload-button" class="disabled" disabled />
     </form>
+
+    <h3>Uploaded Files</h3>
+    <ul>
+        <!-- 업로드된 파일 목록을 보여줍니다 -->
+        <!-- 이 부분은 새로운 Python 스크립트에 의해 동적으로 생성됩니다 -->
+        <script>
+            document.getElementById('file-input').addEventListener('change', function() {
+                const uploadButton = document.getElementById('upload-button');
+                if (this.files.length > 0) {
+                    uploadButton.disabled = false;
+                    uploadButton.classList.remove('disabled');
+                } else {
+                    uploadButton.disabled = true;
+                    uploadButton.classList.add('disabled');
+                }
+            });
+
+            // 파일 목록을 비동기적으로 가져와서 화면에 표시합니다
+            fetch("/cgi-bin/list_files.py")
+                .then(response => response.text())
+                .then(data => document.getElementById('file-list').innerHTML = data);
+        </script>
+        <div id="file-list">Loading files...</div>
+    </ul>
 </body>
 </html>
-
