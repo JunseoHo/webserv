@@ -174,7 +174,8 @@ void Core::handleEvent(int clientSocketFd) {
     std::string target = uri.find("?") != std::string::npos ? uri.substr(0, uri.find("?")) : uri;
 
     if (access(target.substr(1).c_str(), F_OK) == -1 && (uri.find("/cgi-bin/") == std::string::npos || httpRequest.target.find("/cgi-bin/") != 0))
-        statusCode = 404;
+		if (statusCode == 200)
+        	statusCode = 404;
 
     if (statusCode != 200)
     {
