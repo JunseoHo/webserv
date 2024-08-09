@@ -393,6 +393,14 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location
     std::cerr << "interpreter: " << interpreter << '\n';
     std::cerr << "script: " << script << '\n';
     std::cerr << "uri: " << uri << '\n';
+
+	if (location.clientMaxBodySize != 0 && httpRequest.body.size() > location.clientMaxBodySize)
+	{
+		HttpResponse response(location.root + "/" + location.errorPage, httpRequest, 413);
+		_responseBufferManager.appendBuffer(clientSocketFd, response.full.c_str(), response.full.size());
+		return ;
+	}
+
     if (script.empty() && !location.index.empty())
         script = location.index;
     else if (script.empty() && location.index.empty())

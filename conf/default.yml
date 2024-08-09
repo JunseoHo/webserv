@@ -8,7 +8,7 @@ server:
     allow_methods: POST
     index: index.html
     autoindex: on
-    client_max_body_size: 100
+    client_max_body_size: 3
     error_page: error.html
   location: /guide
     allow_methods: GET
