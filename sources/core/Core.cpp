@@ -72,9 +72,9 @@ void Core::handleOutEvent(int clientSocketFd) {
     if (_responseBufferManager.isBufferEmpty(clientSocketFd))
         return ;
     std::string response = _responseBufferManager.GetSubBuffer(clientSocketFd, BUFFER_SIZE);
-    //std::cout << "========== Response =========" << std::endl;
-    //std::cout << response << '\n';
-    //std::cout << "=============================" << std::endl;
+    std::cout << "========== Response =========" << std::endl;
+    std::cout << response << '\n';
+    std::cout << "=============================" << std::endl;
     ssize_t size = write(clientSocketFd, response.c_str(), response.size());;
     if (size < 0)
     {
@@ -174,8 +174,10 @@ void Core::handleEvent(int clientSocketFd) {
     std::string target = uri.find("?") != std::string::npos ? uri.substr(0, uri.find("?")) : uri;
 
     if (access(target.substr(1).c_str(), F_OK) == -1 && (uri.find("/cgi-bin/") == std::string::npos || httpRequest.target.find("/cgi-bin/") != 0))
-		if (statusCode == 200)
+	{
+		if (httpRequest.method != POST && statusCode == 200)
         	statusCode = 404;
+	}
 
     if (statusCode != 200)
     {
@@ -198,7 +200,6 @@ void Core::handleEvent(int clientSocketFd) {
 
 void Core::executeCGI(std::string uri, HttpRequest &request, int clientSocketFd, Location location)
 {
-
     std::string scriptPath = uri.substr(0, uri.find(".py") + 3);
     std::string pathInfo = uri.substr(uri.find(".py") + 3, uri.find("?") - uri.find(".py") - 3);
     std::string queryString = uri.substr(uri.find("?") + 1);
@@ -384,11 +385,10 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location
     int statusCode = 201;
     // POST 요청 처리
     // uri가 디렉토리인지 확인
-    if (!isDirectory(uri.substr(1)))
-        statusCode = 404;
-    std::string contentType = httpRequest.headers["Content-Type"];
+	std::string contentType = httpRequest.headers["Content-Type"];
     std::cout << contentType << std::endl;
-
+    if (contentType.find("multipart/form-data") != std::string::npos && !isDirectory(uri.substr(1)))
+        statusCode = 404;
    	// clientMaxBodySize가 0이 아닌 경우, body size 체크, 초과시 413
     if (location.clientMaxBodySize != 0 && httpRequest.headers.find("Content-Length") != httpRequest.headers.end())
     {
