@@ -72,9 +72,9 @@ void Core::handleOutEvent(int clientSocketFd) {
     if (_responseBufferManager.isBufferEmpty(clientSocketFd))
         return ;
     std::string response = _responseBufferManager.GetSubBuffer(clientSocketFd, BUFFER_SIZE);
-    //std::cout << "========== Response =========" << std::endl;
-    //std::cout << response << '\n';
-    //std::cout << "=============================" << std::endl;
+    std::cout << "========== Response =========" << std::endl;
+    std::cout << response << '\n';
+    std::cout << "=============================" << std::endl;
     ssize_t size = write(clientSocketFd, response.c_str(), response.size());;
     if (size < 0)
     {
@@ -383,7 +383,7 @@ void Core::getMethod(std::string& uri,
 
 void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location& location, int& clientSocketFd) {
 	std::string scriptPath = "resources/cgi-bin/post.py";
-    std::string pathInfo = httpRequest.target;
+    std::string pathInfo = "";
     std::string queryString = "";
     std::string interpreter = "/usr/local/bin/python3"; // revise
     std::string script = "post.py";
@@ -458,6 +458,7 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location
         envStrings.push_back("SERVER_SOFTWARE=webserv");
         envStrings.push_back("SERVER_NAME=" + httpRequest.headers["Host"]);
         envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
+        envStrings.push_back("TARGET=" + httpRequest.target.substr(1));
 
         // char* 배열로 변환
         std::vector<char*> env(envStrings.size() + 1); // +1 for NULL terminator

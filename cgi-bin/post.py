@@ -1,57 +1,94 @@
-
-
 import cgi
 import os
 import sys
 
-# 응답 헤더 출력
-print("Content-Type: text/plain")
-print()
+UPLOAD_DIR = 'resources/uploads'  # 파일을 저장할 디렉토리
 
-# 업로드된 파일을 저장할 디렉토리 설정
-upload_dir = os.path.join(os.getcwd(), 'resources/uploads')
-os.makedirs(upload_dir, exist_ok=True)
-
-def save_uploaded_file(field_name, upload_dir):
+def save_uploaded_file(form_field, upload_dir):
     form = cgi.FieldStorage()
+    if form_field in form:
+        fileitem = form[form_field]
+        if fileitem.file:
+            filepath = os.path.join(upload_dir, fileitem.filename)
+            with open(filepath, 'wb') as fout:
+                while True:
+                    chunk = fileitem.file.read(100000)
+                    if not chunk:
+                        break
+                    fout.write(chunk)
+            return "Status: 201 Created"
+        else:
+            return "Status: 400 Bad Request"
+    else:
+        return "Status: 400 Bad Request"
 
-    if field_name not in form:
-        # 파일이 포함되지 않은 경우
-        print("Status: 400 Bad Request")
-        print("Error: No file part")
-        sys.exit()
+def handle_post_request():
+    content_type = os.environ.get('CONTENT_TYPE', '')
 
-    file_item = form[field_name]
+    if content_type.startswith('application/x-www-form-urlencoded'):
+        # Handle form data
+        data = sys.stdin.read()  # Read the raw POST data from stdin
+        # 타겟이 없는 경우 저장하지 않음
+        target = os.environ.get('TARGET')
+        if not target:
+            return "Status: 400 Bad Request"
+        # target이 생성할 수 있는 파일명이 아닌 경우 저장하지 않음(ex. 폴더명)
+        if '/' in target or '\\' in target:
+            return "Status: 400 Bad Request"
+        # 저장할 파일이 이미 존재하는 경우 저장하지 않음
+        if os.path.exists(os.path.join(UPLOAD_DIR, target)):
+            return "Status: 409 Conflict"
+        file_path = os.path.join(UPLOAD_DIR, target)
+        with open(file_path, 'w') as file:
+            file.write(data)
+        response = "Status: 201 Created"
 
-    if file_item.filename == "":
-        # 파일이 선택되지 않은 경우
-        print("Status: 400 Bad Request")
-        print("Error: No selected file")
-        sys.exit()
+    elif content_type.startswith('application/json'):
+        # Handle JSON data
+        data = sys.stdin.read()  # Read the raw POST data from stdin
+        # 타겟이 없는 경우 저장하지 않음
+        target = os.environ.get('TARGET')
+        if not target:
+            return "Status: 400 Bad Request"
+        # target이 생성할 수 있는 파일명이 아닌 경우 저장하지 않음(ex. 폴더명)
+        if '/' in target or '\\' in target:
+            return "Status: 400 Bad Request"
+        # 저장할 파일이 이미 존재하는 경우 저장하지 않음
+        if os.path.exists(os.path.join(UPLOAD_DIR, target)):
+            return "Status: 409 Conflict"
+        file_path = os.path.join(UPLOAD_DIR, target)
+        with open(file_path, 'w') as file:
+            file.write(data)
+        response = "Status: 201 Created"
 
-    if file_item.filename:
-        # 파일 저장 경로 설정
-        file_path = os.path.join(upload_dir, os.path.basename(file_item.filename))
+    elif content_type.startswith('text/plain'):
+        # Handle plain text
+        data = sys.stdin.read()  # Read the raw POST data from stdin
+        # 타겟이 없는 경우 저장하지 않음
+        target = os.environ.get('TARGET')
+        if not target:
+            return "Status: 400 Bad Request"
+        # target이 생성할 수 있는 파일명이 아닌 경우 저장하지 않음(ex. 폴더명)
+        if '/' in target or '\\' in target:
+            return "Status: 400 Bad Request"
+        # 저장할 파일이 이미 존재하는 경우 저장하지 않음
+        if os.path.exists(os.path.join(UPLOAD_DIR, target)):
+            return "Status: 409 Conflict"
+        file_path = os.path.join(UPLOAD_DIR, target)
+        with open(file_path, 'w') as file:
+            file.write(data)
+        response = "Status: 201 Created"
 
-        try:
-            # 파일 저장
-            with open(file_path, "wb") as f:
-                # 파일 데이터를 바이너리 모드로 저장
-                while chunk := file_item.file.read(8192):
-                    f.write(chunk)
-
-            # 성공 응답
-            print("Status: 201 Created")
-            print(f"File uploaded successfully: {file_path}")
-
-        except IOError as e:
-            # 파일 저장 중 오류 발생
-            print("Status: 500 Internal Server Error")
-            print(f"Error: Unable to save file. {e}")
+    elif content_type.startswith('multipart/form-data'):
+        # Handle file upload
+        response = save_uploaded_file('file', UPLOAD_DIR)
 
     else:
-        # 파일이 포함되지 않은 경우
-        print("Status: 400 Bad Request")
-        print("Error: No file part")
+        response = "Status: 400 Bad Request"
 
-save_uploaded_file('file', upload_dir)
+    return response
+
+if __name__ == '__main__':
+    response = handle_post_request()
+    print("Content-Type: text/plain")
+    print(response)
