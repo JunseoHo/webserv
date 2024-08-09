@@ -163,7 +163,7 @@ void Core::handleEvent(int clientSocketFd) {
 
     std::cout << "Selected location path: " << location.path << std::endl;
 
-    // method가 허용되지 않으면 405
+    // method가 허용되지 않으면 
     std::cout << "Accepted HTTP Methods: " << location.acceptedHttpMethods << std::endl;
     std::cout << "Request Method: " << httpRequest.method << std::endl;
     if (!(location.acceptedHttpMethods & httpRequest.method)) {
@@ -382,46 +382,110 @@ void Core::getMethod(std::string& uri,
 }
 
 void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location& location, int& clientSocketFd) {
-    int statusCode = 201;
-    // POST 요청 처리
-    // uri가 디렉토리인지 확인
-	std::string contentType = httpRequest.headers["Content-Type"];
-    std::cout << contentType << std::endl;
-    if (contentType.find("multipart/form-data") != std::string::npos && !isDirectory(uri.substr(1)))
-        statusCode = 404;
-   	// clientMaxBodySize가 0이 아닌 경우, body size 체크, 초과시 413
-    if (location.clientMaxBodySize != 0 && httpRequest.headers.find("Content-Length") != httpRequest.headers.end())
+	std::string scriptPath = "resources/cgi-bin/post.py";
+    std::string pathInfo = httpRequest.target;
+    std::string queryString = "";
+    std::string interpreter = "/usr/local/bin/python3"; // revise
+    std::string script = "post.py";
+    std::cerr << "scriptPath: " << scriptPath << '\n';
+    std::cerr << "pathInfo: " << pathInfo << '\n';
+    std::cerr << "queryString: " << queryString << '\n';
+    std::cerr << "interpreter: " << interpreter << '\n';
+    std::cerr << "script: " << script << '\n';
+    std::cerr << "uri: " << uri << '\n';
+    if (script.empty() && !location.index.empty())
+        script = location.index;
+    else if (script.empty() && location.index.empty())
     {
-        size_t contentLength = std::stoi(httpRequest.headers["Content-Length"]);
-		std::cout << "Check Max Body Size" << contentLength << " " << location.clientMaxBodySize << " " << statusCode << std::endl;
-        if (contentLength > location.clientMaxBodySize)
-			if (statusCode == 201)
-			{
-            	statusCode = 413;
-			}
+        HttpResponse httpResponse(location.root + "/" + location.errorPage, httpRequest, 404);
+        _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+        return;
+    }
+    if (access(("cgi-bin/" + script).c_str(), F_OK) == -1 || script.find(".py") == std::string::npos)
+    {
+        HttpResponse httpResponse(location.root + "/" + location.errorPage, httpRequest, 404);
+        _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+        return;
+    }
+    int cgiInPipe[2];
+    int cgiOutPipe[2];
+    if (pipe(cgiInPipe) == -1)
+    {
+        std::cerr << "Failed to create pipe: " << std::strerror(errno) << '\n';
+        return;
+    }
+    if (pipe(cgiOutPipe) == -1)
+    {
+        std::cerr << "Failed to create pipe: " << std::strerror(errno) << '\n';
+        return;
+    }
+    setNonBlocking(cgiInPipe[0]);
+    setNonBlocking(cgiInPipe[1]);
+    setNonBlocking(cgiOutPipe[0]);
+    setNonBlocking(cgiOutPipe[1]);
+
+    pid_t pid = fork();
+    if (pid == -1)
+    {
+        std::cerr << "Failed to fork: " << std::strerror(errno) << '\n';
+        return;
     }
 
-    if (contentType.find("multipart/form-data") != std::string::npos) {
-        std::string boundary = "--" + contentType.substr(contentType.find("boundary=") + 9);
-        std::string path = location.root + location.path;
-        if (isDirectory(path.substr(1)))
-        {
-            std::cout << "Multipart data received" << std::endl;
-            if (path.back() != '/')
-                path += '/';
-            parse_multipart_data(path.substr(1), httpRequest.body, boundary);
+    if (pid == 0)
+    {
+        close(cgiInPipe[1]);
+        close(cgiOutPipe[0]);
+        dup2(cgiInPipe[0], STDIN_FILENO);
+        dup2(cgiOutPipe[1], STDOUT_FILENO);
+        close(cgiInPipe[0]);
+        close(cgiOutPipe[1]);
+
+        
+        char **args = (char **)malloc(sizeof(char *) * 3);
+        args[0] = strdup(interpreter.c_str());
+        args[1] = strdup(("cgi-bin/" + script).c_str());
+        args[2] = NULL;
+        std::vector<std::string> envStrings;
+        envStrings.push_back("SCRIPT_FILENAME=" + scriptPath);
+        envStrings.push_back("PATH_INFO=" + pathInfo);
+        envStrings.push_back("QUERY_STRING=" + queryString);
+        std::string method = httpRequest.method == GET ? "GET" : "POST";
+        envStrings.push_back("REQUEST_METHOD=" + method);
+        envStrings.push_back("REDIRECT_STATUS=200");
+        envStrings.push_back("CONTENT_LENGTH=" + std::to_string(httpRequest.body.size()));
+        envStrings.push_back("CONTENT_TYPE=" + httpRequest.headers["Content-Type"]);
+        envStrings.push_back("SERVER_PROTOCOL=" + httpRequest.version);
+        envStrings.push_back("SERVER_SOFTWARE=webserv");
+        envStrings.push_back("SERVER_NAME=" + httpRequest.headers["Host"]);
+        envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
+
+        // char* 배열로 변환
+        std::vector<char*> env(envStrings.size() + 1); // +1 for NULL terminator
+        for (size_t i = 0; i < envStrings.size(); ++i) {
+            env[i] = const_cast<char*>(envStrings[i].c_str());
         }
-        else
-			if (statusCode == 201)
-            	statusCode = 404;
+        env[envStrings.size()] = NULL; // NULL terminator
+        execve(args[0], args, env.data());
+        exit(1);
     }
-    else
-		if (statusCode == 201)
-        	statusCode = 400;
-	if (statusCode != 201)
-		uri = location.root + "/" + location.errorPage;
-    HttpResponse httpResponse(uri, httpRequest, statusCode);
-    _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+    close(cgiInPipe[0]);
+    close(cgiOutPipe[1]);
+    // request 전문을 파이프로 전달
+    if (httpRequest.method == POST) {
+        pollfd pollFdOut;
+        pollFdOut.fd = cgiInPipe[1];
+        pollFdOut.events = POLLOUT;
+        pollFdOut.revents = 0;
+        _pollFds.push_back(pollFdOut);
+        _responseBufferManager.appendBuffer(cgiInPipe[1], httpRequest.body.c_str(), httpRequest.body.size());
+    }
+    pollfd pollFd;
+    pollFd.fd = cgiOutPipe[0];
+    pollFd.events = POLLIN;
+    pollFd.revents = 0;
+    _pollFds.push_back(pollFd);
+    _cgiBufferManager.addBuffer(cgiOutPipe[0]);
+    _socketManager.connectCgiToClient(cgiOutPipe[0], clientSocketFd);
 }
 
 void Core::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd) {
