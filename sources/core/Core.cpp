@@ -26,11 +26,11 @@ void Core::Start() {
     eventLoop();
 }
 
-
 void Core::eventLoop() {
     while (true) {
         try {
             // std::cout << "Polling..." << std::endl;
+            getPidRuntime();
             int pollResult = poll(_pollFds.data(), _pollFds.size(), -1);
             if (pollResult == -1)
                 throw std::runtime_error("poll failed");
@@ -50,10 +50,8 @@ void Core::eventLoop() {
                     }
                 } else if (_pollFds[i].revents & POLLOUT) {
                     handleOutEvent(_pollFds[i].fd);
-                    if (_responseBufferManager.isBufferEmpty(_pollFds[i].fd))
-                    {
-                        if (_bufferManager.isBufferEmpty(_pollFds[i].fd) && _cgiBufferManager.isBufferEmpty(_pollFds[i].fd))
-                        {
+                    if (_responseBufferManager.isBufferEmpty(_pollFds[i].fd)) {
+                        if (_bufferManager.isBufferEmpty(_pollFds[i].fd) && _cgiBufferManager.isBufferEmpty(_pollFds[i].fd)) {
                             _pollFds.erase(_pollFds.begin() + i);
                             i--;
                         }
@@ -216,15 +214,13 @@ void Core::executeCGI(std::string uri, HttpRequest &request, int clientSocketFd,
 
     if (script.empty() && !location.index.empty())
         script = location.index;
-    else if (script.empty() && location.index.empty())
-    {
+    else if (script.empty() && location.index.empty()) {
         HttpResponse httpResponse(location.root + "/" + location.errorPage, request, 404);
         _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
         return;
     }
 
-    if (access(("cgi-bin/" + script).c_str(), F_OK) == -1 || script.find(".py") == std::string::npos)
-    {
+    if (access(("cgi-bin/" + script).c_str(), F_OK) == -1 || script.find(".py") == std::string::npos) {
         HttpResponse httpResponse(location.root + "/" + location.errorPage, request, 404);
         _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
         return;
@@ -232,38 +228,27 @@ void Core::executeCGI(std::string uri, HttpRequest &request, int clientSocketFd,
 
     int cgiInPipe[2];
     int cgiOutPipe[2];
-    if (pipe(cgiInPipe) == -1)
-    {
+    if (pipe(cgiInPipe) == -1) {
         std::cerr << "Failed to create pipe: " << std::strerror(errno) << '\n';
         return;
     }
-    if (pipe(cgiOutPipe) == -1)
-    {
+    if (pipe(cgiOutPipe) == -1) {
         std::cerr << "Failed to create pipe: " << std::strerror(errno) << '\n';
         return;
     }
-    setNonBlocking(cgiInPipe[0]);
-    setNonBlocking(cgiInPipe[1]);
-    setNonBlocking(cgiOutPipe[0]);
-    setNonBlocking(cgiOutPipe[1]);
+    setNonBlocking(cgiInPipe[0]); setNonBlocking(cgiInPipe[1]); setNonBlocking(cgiOutPipe[0]); setNonBlocking(cgiOutPipe[1]);
 
     pid_t pid = fork();
-    if (pid == -1)
-    {
+    if (pid == -1) {
         std::cerr << "Failed to fork: " << std::strerror(errno) << '\n';
         return;
     }
 
-    if (pid == 0)
-    {
-        close(cgiInPipe[1]);
-        close(cgiOutPipe[0]);
-        dup2(cgiInPipe[0], STDIN_FILENO);
-        dup2(cgiOutPipe[1], STDOUT_FILENO);
-        close(cgiInPipe[0]);
-        close(cgiOutPipe[1]);
+    if (pid == 0) {
+        close(cgiInPipe[1]); close(cgiOutPipe[0]);
+        dup2(cgiInPipe[0], STDIN_FILENO); dup2(cgiOutPipe[1], STDOUT_FILENO);
+        close(cgiInPipe[0]); close(cgiOutPipe[1]);
 
-        
         char **args = (char **)malloc(sizeof(char *) * 3);
         args[0] = strdup(interpreter.c_str());
         args[1] = strdup(("cgi-bin/" + script).c_str());
@@ -294,6 +279,12 @@ void Core::executeCGI(std::string uri, HttpRequest &request, int clientSocketFd,
     }
     close(cgiInPipe[0]);
     close(cgiOutPipe[1]);
+
+    cgiPidsInfo cgiPidInfo;
+    cgiPidInfo.clientFd = clientSocketFd;
+    cgiPidInfo.pid = pid;
+    cgiPidInfo.startTime = std::clock() / CLOCKS_PER_SEC;
+    _cgiPidsInfo.push_back(cgiPidInfo);    
     // request 전문을 파이프로 전달
     if (request.method == POST) {
         pollfd pollFdOut;
@@ -441,13 +432,9 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location
 
     if (pid == 0)
     {
-        close(cgiInPipe[1]);
-        close(cgiOutPipe[0]);
-        dup2(cgiInPipe[0], STDIN_FILENO);
-        dup2(cgiOutPipe[1], STDOUT_FILENO);
-        close(cgiInPipe[0]);
-        close(cgiOutPipe[1]);
-
+        close(cgiInPipe[1]); close(cgiOutPipe[0]);
+        dup2(cgiInPipe[0], STDIN_FILENO); dup2(cgiOutPipe[1], STDOUT_FILENO);
+        close(cgiInPipe[0]); close(cgiOutPipe[1]);
         
         char **args = (char **)malloc(sizeof(char *) * 3);
         args[0] = strdup(interpreter.c_str());
@@ -477,8 +464,6 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location
         execve(args[0], args, env.data());
         exit(1);
     }
-    close(cgiInPipe[0]);
-    close(cgiOutPipe[1]);
     // request 전문을 파이프로 전달
     if (httpRequest.method == POST) {
         pollfd pollFdOut;
@@ -487,6 +472,7 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location
         pollFdOut.revents = 0;
         _pollFds.push_back(pollFdOut);
         _responseBufferManager.appendBuffer(cgiInPipe[1], httpRequest.body.c_str(), httpRequest.body.size());
+        close(cgiInPipe[1]);
     }
     pollfd pollFd;
     pollFd.fd = cgiOutPipe[0];
@@ -495,6 +481,7 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location
     _pollFds.push_back(pollFd);
     _cgiBufferManager.addBuffer(cgiOutPipe[0]);
     _socketManager.connectCgiToClient(cgiOutPipe[0], clientSocketFd);
+    close(cgiOutPipe[0]);
 }
 
 void Core::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd) {
@@ -506,4 +493,29 @@ void Core::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusC
         remove(uri.substr(1).c_str());
     HttpResponse httpResponse(uri, httpRequest, statusCode);
     _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+}
+
+
+void Core::getPidRuntime() {
+    int status;
+    std::clock_t end = std::clock() / CLOCKS_PER_SEC;
+
+    for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end(); ++it)
+    {
+        if (end - it->startTime > TIMEOUT)
+        {
+            kill(it->pid, SIGKILL);
+            _cgiPidsInfo.erase(it);
+            close(it->clientFd);
+            _responseBufferManager.removeBuffer(it->clientFd);
+            _socketManager.removeClientSocketFd(it->clientFd);
+            
+            _pollFds[]
+        } else {
+            waitpid(it->pid, &status, WNOHANG);
+            if (WEXITSTATUS(status) == 1)
+
+
+        }
+    }
 }
