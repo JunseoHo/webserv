@@ -72,9 +72,9 @@ void Core::handleOutEvent(int clientSocketFd) {
     if (_responseBufferManager.isBufferEmpty(clientSocketFd))
         return ;
     std::string response = _responseBufferManager.GetSubBuffer(clientSocketFd, BUFFER_SIZE);
-    std::cout << "========== Response =========" << std::endl;
-    std::cout << response << '\n';
-    std::cout << "=============================" << std::endl;
+    //std::cout << "========== Response =========" << std::endl;
+    //std::cout << response << '\n';
+    //std::cout << "=============================" << std::endl;
     ssize_t size = write(clientSocketFd, response.c_str(), response.size());;
     if (size < 0)
     {
@@ -368,14 +368,6 @@ void Core::getMethod(std::string& uri,
             statusCode = 404;
     }
 
-    // clientMaxBodySize가 0이 아닌 경우, body size 체크, 초과시 413
-    if (location.clientMaxBodySize != 0 && httpRequest.headers.find("Content-Length") != httpRequest.headers.end())
-    {
-        size_t contentLength = std::stoi(httpRequest.headers["Content-Length"]);
-        if (contentLength > location.clientMaxBodySize)
-            statusCode = 413;
-    }
-
     if (statusCode != 200)
     {
         uri = location.root + "/" + location.errorPage;
@@ -396,6 +388,19 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location
         statusCode = 404;
     std::string contentType = httpRequest.headers["Content-Type"];
     std::cout << contentType << std::endl;
+
+   	// clientMaxBodySize가 0이 아닌 경우, body size 체크, 초과시 413
+    if (location.clientMaxBodySize != 0 && httpRequest.headers.find("Content-Length") != httpRequest.headers.end())
+    {
+        size_t contentLength = std::stoi(httpRequest.headers["Content-Length"]);
+		std::cout << "Check Max Body Size" << contentLength << " " << location.clientMaxBodySize << " " << statusCode << std::endl;
+        if (contentLength > location.clientMaxBodySize)
+			if (statusCode == 201)
+			{
+            	statusCode = 413;
+			}
+    }
+
     if (contentType.find("multipart/form-data") != std::string::npos) {
         std::string boundary = "--" + contentType.substr(contentType.find("boundary=") + 9);
         std::string path = location.root + location.path;
@@ -407,10 +412,14 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location
             parse_multipart_data(path.substr(1), httpRequest.body, boundary);
         }
         else
-            statusCode = 404;
+			if (statusCode == 201)
+            	statusCode = 404;
     }
     else
-        statusCode = 400;
+		if (statusCode == 201)
+        	statusCode = 400;
+	if (statusCode != 201)
+		uri = location.root + "/" + location.errorPage;
     HttpResponse httpResponse(uri, httpRequest, statusCode);
     _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
 }
