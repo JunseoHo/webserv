@@ -39,7 +39,6 @@ class Core {
     public:
         Core(const Config &config);
 		~Core();
-        
         Config config;
 
 		void Start();

@@ -22,7 +22,6 @@ void Core::Start() {
         _pollFds[i].revents = 0;
 		std::cout << "File descriptor " << it->first << " is polling..." << std::endl;
     }
-
     eventLoop();
 }
 
@@ -31,7 +30,7 @@ void Core::eventLoop() {
         try {
             // std::cout << "Polling..." << std::endl;
             handleTimeoutCGI();
-            int pollResult = poll(_pollFds.data(), _pollFds.size(), -1);
+            int pollResult = poll(_pollFds.data(), _pollFds.size(), 1);
             if (pollResult == -1)
                 throw std::runtime_error("poll failed");
             for (int i = 0; i < _pollFds.size(); i++) {
@@ -504,13 +503,14 @@ void Core::handleTimeoutCGI() {
     double currentTime = static_cast<double>(std::clock()) / CLOCKS_PER_SEC;
     for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end();)
     {
-		std::cout << "Loop!" << std::endl;
+        std::cerr << "Current time: " << currentTime << std::endl;
         if (currentTime - it->startTime > TIME_LIMIT)
         {
             kill(it->pid, SIGKILL);
-			close(it->clientFd);
+            HttpResponse response(it->location.root + "/" + it->location.errorPage, it->request, 413);
             _responseBufferManager.removeBuffer(it->clientFd);
-            _socketManager.removeClientSocketFd(it->clientFd);
+            _responseBufferManager.appendBuffer(it->clientFd, response.full.c_str(), response.full.size());
+            waitpid(it->pid, &status, 0);
 			std::vector<pollfd>::iterator clientPollFdIt = _pollFds.end();
             for (std::vector<pollfd>::iterator itPollFd = _pollFds.begin(); itPollFd != _pollFds.end(); ++itPollFd) {
 			    if (itPollFd->fd == it->clientFd) {
@@ -527,7 +527,8 @@ void Core::handleTimeoutCGI() {
 			if (pid > 0 && WEXITSTATUS(status) != 0)
 			{
 				HttpResponse response(it->location.root + "/" + it->location.errorPage, it->request, 500);
-				 _responseBufferManager.appendBuffer(it->clientFd, response.full.c_str(), response.full.size());
+                _responseBufferManager.removeBuffer(it->clientFd);
+			    _responseBufferManager.appendBuffer(it->clientFd, response.full.c_str(), response.full.size());
 				_cgiPidsInfo.erase(it);
 			}
 			else
