@@ -502,13 +502,13 @@ void Core::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusC
 void Core::handleTimeoutCGI() {
     int status;
     double currentTime = static_cast<double>(std::clock()) / CLOCKS_PER_SEC;
-    for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end(); ++it)
+    for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end();)
     {
+		std::cout << "Loop!" << std::endl;
         if (currentTime - it->startTime > TIME_LIMIT)
         {
             kill(it->pid, SIGKILL);
 			close(it->clientFd);
-            _cgiPidsInfo.erase(it);
             _responseBufferManager.removeBuffer(it->clientFd);
             _socketManager.removeClientSocketFd(it->clientFd);
 			std::vector<pollfd>::iterator clientPollFdIt = _pollFds.end();
@@ -521,13 +521,18 @@ void Core::handleTimeoutCGI() {
 			if (clientPollFdIt != _pollFds.end()) {
 			    _pollFds.erase(clientPollFdIt);
 			}
+			_cgiPidsInfo.erase(it);
         } else {
             pid_t pid = waitpid(it->pid, &status, WNOHANG);
 			if (pid > 0 && WEXITSTATUS(status) != 0)
 			{
 				HttpResponse response(it->location.root + "/" + it->location.errorPage, it->request, 500);
 				 _responseBufferManager.appendBuffer(it->clientFd, response.full.c_str(), response.full.size());
-	            _cgiPidsInfo.erase(it);
+				_cgiPidsInfo.erase(it);
+			}
+			else
+			{
+				++it;
 			}
         }
     }
