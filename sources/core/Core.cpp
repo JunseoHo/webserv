@@ -30,7 +30,7 @@ void Core::eventLoop() {
     while (true) {
         try {
             // std::cout << "Polling..." << std::endl;
-            getPidRuntime();
+            handleTimeoutCGI();
             int pollResult = poll(_pollFds.data(), _pollFds.size(), -1);
             if (pollResult == -1)
                 throw std::runtime_error("poll failed");
@@ -44,7 +44,7 @@ void Core::eventLoop() {
                         int clientFd = _socketManager.GetClientFdByCgiFd(_pollFds[i].fd);
                         handleCgiEvent(_pollFds[i].fd, clientFd);
                     } else if (!_socketManager.isConnectedClinetToCgi(_pollFds[i].fd)) {  // 클라이언트 소켓인 경우
-                        handleEvent(_pollFds[i].fd);
+						handleEvent(_pollFds[i].fd);
                         if (!_responseBufferManager.isBufferEmpty(_pollFds[i].fd))
                             _pollFds[i].events = POLLOUT;
                     }
@@ -283,7 +283,10 @@ void Core::executeCGI(std::string uri, HttpRequest &request, int clientSocketFd,
     cgiPidsInfo cgiPidInfo;
     cgiPidInfo.clientFd = clientSocketFd;
     cgiPidInfo.pid = pid;
-    cgiPidInfo.startTime = std::clock() / CLOCKS_PER_SEC;
+    cgiPidInfo.startTime = static_cast<double>(std::clock()) / CLOCKS_PER_SEC;
+	cgiPidInfo.request = request;
+	cgiPidInfo.uri = uri;
+	cgiPidInfo.location = location;
     _cgiPidsInfo.push_back(cgiPidInfo);    
     // request 전문을 파이프로 전달
     if (request.method == POST) {
@@ -496,26 +499,36 @@ void Core::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusC
 }
 
 
-void Core::getPidRuntime() {
+void Core::handleTimeoutCGI() {
     int status;
-    std::clock_t end = std::clock() / CLOCKS_PER_SEC;
-
+    double currentTime = static_cast<double>(std::clock()) / CLOCKS_PER_SEC;
     for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end(); ++it)
     {
-        if (end - it->startTime > TIMEOUT)
+        if (currentTime - it->startTime > TIME_LIMIT)
         {
             kill(it->pid, SIGKILL);
+			close(it->clientFd);
             _cgiPidsInfo.erase(it);
-            close(it->clientFd);
             _responseBufferManager.removeBuffer(it->clientFd);
             _socketManager.removeClientSocketFd(it->clientFd);
-            
-            _pollFds[]
+			std::vector<pollfd>::iterator clientPollFdIt = _pollFds.end();
+            for (std::vector<pollfd>::iterator itPollFd = _pollFds.begin(); itPollFd != _pollFds.end(); ++itPollFd) {
+			    if (itPollFd->fd == it->clientFd) {
+			        clientPollFdIt = itPollFd;
+			        break;
+			    }
+			}
+			if (clientPollFdIt != _pollFds.end()) {
+			    _pollFds.erase(clientPollFdIt);
+			}
         } else {
-            waitpid(it->pid, &status, WNOHANG);
-            if (WEXITSTATUS(status) == 1)
-
-
+            pid_t pid = waitpid(it->pid, &status, WNOHANG);
+			if (pid > 0 && WEXITSTATUS(status) != 0)
+			{
+				HttpResponse response(it->location.root + "/" + it->location.errorPage, it->request, 500);
+				 _responseBufferManager.appendBuffer(it->clientFd, response.full.c_str(), response.full.size());
+	            _cgiPidsInfo.erase(it);
+			}
         }
     }
 }

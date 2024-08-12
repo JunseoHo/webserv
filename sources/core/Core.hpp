@@ -24,12 +24,15 @@
 # include "../utils/utils.h"
 # include <signal.h>
 # define BUFFER_SIZE 1024
-# define TIMEOUT 3
+# define TIME_LIMIT 3
 
 struct cgiPidsInfo {
     int clientFd;
     pid_t pid;
     double startTime;
+	std::string uri;
+	HttpRequest request;
+	Location location;
 };
 
 class Core {
@@ -63,7 +66,7 @@ class Core {
         void postMethod(std::string& uri, HttpRequest& httpRequest, const Location& location, int& clientSocketFd);
         void deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd);
         void handleOutEvent(int clientSocketFd);
-        void getPidRuntime();
+        void handleTimeoutCGI();
 };
 
 #endif

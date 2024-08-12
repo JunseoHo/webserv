@@ -3,6 +3,7 @@
 import cgi
 import os
 import datetime
+import time
 
 # Enable debugging
 
@@ -19,8 +20,8 @@ if num1 is not None and num2 is not None:
     num1 = int(num1)
     num2 = int(num2)
 
-while True:
-    pass
+time.sleep(10)
+
 # Perform the calculation
 result = None
 if operation == "add":

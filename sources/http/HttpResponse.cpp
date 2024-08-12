@@ -214,4 +214,5 @@ void HttpResponse::setResponse(const std::string& uri, const HttpRequest &reques
     for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); it++)
         full += it->first + ": " + it->second + "\r\n";
     full += "\r\n" + body;
+
 }
