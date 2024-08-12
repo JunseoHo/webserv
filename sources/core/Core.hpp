@@ -24,7 +24,7 @@
 # include "../utils/utils.h"
 # include <signal.h>
 # define BUFFER_SIZE 1024
-# define TIME_LIMIT 3
+# define TIME_LIMIT 0.1
 
 struct cgiPidsInfo {
     int clientFd;

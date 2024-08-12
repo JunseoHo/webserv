@@ -16,7 +16,7 @@ INC = sources/core/
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	$(CXX) $(CXXFLAGS) -fsanitize=address -g -o $(TARGET) $(SRC) -I$(INC)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRC) -I$(INC)
 
 clean:
 	rm -rf $(TARGET)

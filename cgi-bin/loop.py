@@ -20,7 +20,8 @@ if num1 is not None and num2 is not None:
     num1 = int(num1)
     num2 = int(num2)
 
-time.sleep(10)
+while True:
+    pass
 
 # Perform the calculation
 result = None

@@ -4,8 +4,6 @@ import cgi
 import os
 import datetime
 
-# Enable debugging
-
 # Get form data
 form = cgi.FieldStorage()
 
@@ -14,28 +12,34 @@ num1 = form.getvalue("num1")
 num2 = form.getvalue("num2")
 operation = form.getvalue("operation")
 
-# Convert numbers to integers
-if num1 is not None and num2 is not None:
-    num1 = int(num1)
-    num2 = int(num2)
-
-# Perform the calculation
+# Initialize result variable
 result = None
-if operation == "add":
-    result = num1 + num2
-elif operation == "subtract":
-    result = num1 - num2
-elif operation == "multiply":
-    result = num1 * num2
-elif operation == "divide":
-    if num2 != 0:
-        result = num1 / num2
-    else:
-        result = "Error: Division by zero"
+
+# Convert numbers to integers and perform calculation
+if num1 is not None and num2 is not None:
+    try:
+        num1 = int(num1)
+        num2 = int(num2)
+        if operation == "add":
+            result = num1 + num2
+        elif operation == "subtract":
+            result = num1 - num2
+        elif operation == "multiply":
+            result = num1 * num2
+        elif operation == "divide":
+            if num2 != 0:
+                result = num1 / num2
+            else:
+                result = "Error: Division by zero"
+        else:
+            result = "Error: Invalid operation"
+    except ValueError:
+        result = "Error: Invalid input"
 
 # Print the HTTP headers and the HTML content
 print("Content-type: text/html")
-print("Status: 200 OK", end="\r\n\r\n")
+print("Status: 200 OK\r\n\r\n")
+
 print("<html>")
 print("<head>")
 print("<title>Simple Calculator</title>")
@@ -44,7 +48,8 @@ print("<body>")
 print("<h1>Simple Calculator</h1>")
 
 # Display the current time
-print(datetime.datetime.strftime(datetime.datetime.now(), "<h2>Current Time: %H:%M:%S</h2>"))
+current_time = datetime.datetime.now().strftime("%H:%M:%S")
+print(f"<h2>Current Time: {current_time}</h2>")
 
 # Display the form
 print("""
@@ -66,9 +71,7 @@ print("""
 
 # Display the result if available
 if result is not None:
-    print("<h2>Result: {}</h2>".format(result))
-
-print(f"{form.getvalue('num1')} {form.getvalue('operation')} {form.getvalue('num2')} = {result}")
+    print(f"<h2>Result: {result}</h2>")
 
 print("</body>")
 print("</html>")

@@ -51,6 +51,15 @@ void Core::eventLoop() {
                     handleOutEvent(_pollFds[i].fd);
                     if (_responseBufferManager.isBufferEmpty(_pollFds[i].fd)) {
                         if (_bufferManager.isBufferEmpty(_pollFds[i].fd) && _cgiBufferManager.isBufferEmpty(_pollFds[i].fd)) {
+                            for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end();)
+                            {
+                                if (_pollFds[i].fd == it->clientFd) {
+                                    close(_pollFds[i].fd);
+                                    _socketManager.disconnectCgiToClient(it->clientFd);
+                                    _cgiPidsInfo.erase(it);
+                                    break;
+                                }
+                            }
                             _pollFds.erase(_pollFds.begin() + i);
                             i--;
                         }
@@ -503,24 +512,16 @@ void Core::handleTimeoutCGI() {
     double currentTime = static_cast<double>(std::clock()) / CLOCKS_PER_SEC;
     for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end();)
     {
-        std::cerr << "Current time: " << currentTime << std::endl;
-        if (currentTime - it->startTime > TIME_LIMIT)
+        double result = currentTime - it->startTime;
+        std::cerr << "duration: " << result << '\n';
+        if (result > TIME_LIMIT)
         {
             kill(it->pid, SIGKILL);
+            waitpid(it->pid, &status, 0);
             HttpResponse response(it->location.root + "/" + it->location.errorPage, it->request, 413);
             _responseBufferManager.removeBuffer(it->clientFd);
             _responseBufferManager.appendBuffer(it->clientFd, response.full.c_str(), response.full.size());
-            waitpid(it->pid, &status, 0);
 			std::vector<pollfd>::iterator clientPollFdIt = _pollFds.end();
-            for (std::vector<pollfd>::iterator itPollFd = _pollFds.begin(); itPollFd != _pollFds.end(); ++itPollFd) {
-			    if (itPollFd->fd == it->clientFd) {
-			        clientPollFdIt = itPollFd;
-			        break;
-			    }
-			}
-			if (clientPollFdIt != _pollFds.end()) {
-			    _pollFds.erase(clientPollFdIt);
-			}
 			_cgiPidsInfo.erase(it);
         } else {
             pid_t pid = waitpid(it->pid, &status, WNOHANG);

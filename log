@@ -168,15 +168,16 @@ Selected server name: yaggoman.com:10028
 
 ========== Request ==========
 
-GET /cgi-bin/loop.py HTTP/1.1
+GET /cgi-bin/cal.py HTTP/1.1
 Host: localhost:10028
 Connection: keep-alive
-Cache-Control: max-age=0
 sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"
 sec-ch-ua-mobile: ?0
 sec-ch-ua-platform: "macOS"
 Upgrade-Insecure-Requests: 1
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36
+Sec-Purpose: prefetch;prerender
+Purpose: prefetch
 Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
 Sec-Fetch-Site: none
 Sec-Fetch-Mode: navigate
@@ -191,5 +192,216 @@ Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7
 Selected location path: /cgi-bin
 Accepted HTTP Methods: 3
 Request Method: 1
-Loop!
-Loop!
+CGI RESPONSE:Content-type: text/html
+Status: 200 OK
+
+
+<html>
+<head>
+<title>Simple Calculator</title>
+</head>
+<body>
+<h1>Simple Calculator</h1>
+<h2>Current Time: 16:14:05</h2>
+
+<form method="post" action="/cgi-bin/cal.py">
+    <label for="num1">First Number:</label>
+    <input type="text" id="num1" name="num1"><br><br>
+    <label for="num2">Second Number:</label>
+    <input type="text" id="num2" name="num2"><br><br>
+    <label for="operation">Operation:</label>
+    <select id="operation" name="operation">
+        <option value="add">Add</option>
+        <option value="subtract">Subtract</option>
+        <option value="multiply">Multiply</option>
+        <option value="divide">Divide</option>
+    </select><br><br>
+    <input type="submit" value="Calculate">
+</form>
+
+</body>
+</html>
+
+HTTP/1.1 200 OK
+Content-type: text/html
+Content-Length: 738
+
+
+<html>
+<head>
+<title>Simple Calculator</title>
+</head>
+<body>
+<h1>Simple Calculator</h1>
+<h2>Current Time: 16:14:05</h2>
+
+<form method="post" action="/cgi-bin/cal.py">
+    <label for="num1">First Number:</label>
+    <input type="text" id="num1" name="num1"><br><br>
+    <label for="num2">Second Number:</label>
+    <input type="text" id="num2" name="num2"><br><br>
+    <label for="operation">Operation:</label>
+    <select id="operation" name="operation">
+        <option value="add">Add</option>
+        <option value="subtract">Subtract</option>
+        <option value="multiply">Multiply</option>
+        <option value="divide">Divide</option>
+    </select><br><br>
+    <input type="submit" value="Calculate">
+</form>
+
+</body>
+</html>
+
+========== Response =========
+HTTP/1.1 200 OK
+Content-type: text/html
+Content-Length: 738
+
+
+<html>
+<head>
+<title>Simple Calculator</title>
+</head>
+<body>
+<h1>Simple Calculator</h1>
+<h2>Current Time: 16:14:05</h2>
+
+<form method="post" action="/cgi-bin/cal.py">
+    <label for="num1">First Number:</label>
+    <input type="text" id="num1" name="num1"><br><br>
+    <label for="num2">Second Number:</label>
+    <input type="text" id="num2" name="num2"><br><br>
+    <label for="operation">Operation:</label>
+    <select id="operation" name="operation">
+        <option value="add">Add</option>
+        <option value="subtract">Subtract</option>
+        <option value="multiply">Multiply</option>
+        <option value="divide">Divide</option>
+    </select><br><br>
+    <input type="submit" value="Calculate">
+</form>
+
+</body>
+</html>
+
+=============================
+Selected server name: yaggoman.com:10028
+
+========== Request ==========
+
+GET /favicon.ico HTTP/1.1
+Host: localhost:10028
+Connection: keep-alive
+sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"
+sec-ch-ua-mobile: ?0
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36
+sec-ch-ua-platform: "macOS"
+Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
+Sec-Fetch-Site: same-origin
+Sec-Fetch-Mode: no-cors
+Sec-Fetch-Dest: image
+Referer: http://localhost:10028/cgi-bin/cal.py
+Accept-Encoding: gzip, deflate, br
+Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7
+
+
+=============================
+
+Selected location path: /
+Accepted HTTP Methods: 2
+Request Method: 1
+URL RESPOJSE:/resources/error.html
+========== Response =========
+HTTP/1.1 405 Method Not Allowed
+Connection: keep-alive
+Content-Length: 1181
+Content-Type: text/html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to webserv</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+			width: 40%;
+        }
+        h1 {
+            color: #CC0000;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #EE0000;
+            font-size: 1.2rem;
+        }
+		.logo {
+            max-w
+=============================
+========== Response =========
+idth: 200px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+		<img src="/42_logo.svg" alt="42 Logo" class="logo">
+        <h1>Error</h1>
+        <p>There was an error on the webserv.</p>
+    </div>
+</body>
+</html>
+
+=============================
+Selected server name: yaggoman.com:10028
+
+========== Request ==========
+
+POST /cgi-bin/cal.py HTTP/1.1
+Host: localhost:10028
+Connection: keep-alive
+Content-Length: 27
+Cache-Control: max-age=0
+sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"
+sec-ch-ua-mobile: ?0
+sec-ch-ua-platform: "macOS"
+Upgrade-Insecure-Requests: 1
+Origin: http://localhost:10028
+Content-Type: application/x-www-form-urlencoded
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+Sec-Fetch-Site: same-origin
+Sec-Fetch-Mode: navigate
+Sec-Fetch-User: ?1
+Sec-Fetch-Dest: document
+Referer: http://localhost:10028/cgi-bin/cal.py
+Accept-Encoding: gzip, deflate, br
+Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7
+
+num1=2&num2=2&operation=add
+=============================
+
+Selected location path: /cgi-bin
+Accepted HTTP Methods: 3
+Request Method: 2
+========== Response =========
+num1=2&num2=2&operation=add
+=============================
