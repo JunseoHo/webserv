@@ -2,7 +2,87 @@
 ***********************      Configuration      ***********************
 ***********************************************************************
 
-Server Name          : www.example.com
+Server Name          : yaggoman.com:10028
+Listen               : 10028
+Client Max Body Size : 3
+Error Page           : error.html
+Root                 : /resources
+Location             : [
+	{
+		Root                  :/resources
+		Path                  :/
+		Index                 :index.html
+		Auto Index            :1
+		Accepted Http Methods :2
+		CGI Path              :
+		Error Page            :error.html
+		Client Max Body Size  :3
+	},	
+	{
+		Root                  :/resources
+		Path                  :/guide
+		Index                 :
+		Auto Index            :0
+		Accepted Http Methods :1
+		CGI Path              :
+		Error Page            :error.html
+		Client Max Body Size  :3
+	},	
+	{
+		Root                  :/resources
+		Path                  :/exam
+		Index                 :html_exam.html
+		Auto Index            :0
+		Accepted Http Methods :1
+		CGI Path              :
+		Error Page            :error.html
+		Client Max Body Size  :3
+	},	
+	{
+		Root                  :/resources
+		Path                  :/banana
+		Index                 :banana.html
+		Auto Index            :1
+		Accepted Http Methods :1
+		CGI Path              :
+		Error Page            :error.html
+		Client Max Body Size  :3
+	},	
+	{
+		Root                  :/resources
+		Path                  :/upload
+		Index                 :upload2.html
+		Auto Index            :0
+		Accepted Http Methods :7
+		CGI Path              :
+		Error Page            :error.html
+		Client Max Body Size  :3
+	},	
+	{
+		Root                  :/resources
+		Path                  :/delete
+		Index                 :delete.html
+		Auto Index            :0
+		Accepted Http Methods :7
+		CGI Path              :
+		Error Page            :error.html
+		Client Max Body Size  :3
+	},	
+	{
+		Root                  :/resources
+		Path                  :/cgi-bin
+		Index                 :current_time.py
+		Auto Index            :0
+		Accepted Http Methods :3
+		CGI Path              :/usr/local/bin/python3
+		Error Page            :error.html
+		Client Max Body Size  :3
+	}	
+]
+
+***********************************************************************
+
+Server Name          : yaggoman.org:10028
 Listen               : 10028
 Client Max Body Size : 0
 Error Page           : error.html
@@ -13,87 +93,7 @@ Location             : [
 		Path                  :/
 		Index                 :index.html
 		Auto Index            :1
-		Accepted Http Methods :1
-		CGI Path              :
-		Error Page            :error.html
-		Client Max Body Size  :100
-	},	
-	{
-		Root                  :/resources
-		Path                  :/guide
-		Index                 :
-		Auto Index            :0
-		Accepted Http Methods :1
-		CGI Path              :
-		Error Page            :error.html
-		Client Max Body Size  :0
-	},	
-	{
-		Root                  :/resources
-		Path                  :/exam
-		Index                 :html_exam.html
-		Auto Index            :0
-		Accepted Http Methods :1
-		CGI Path              :
-		Error Page            :error.html
-		Client Max Body Size  :0
-	},	
-	{
-		Root                  :/resources
-		Path                  :/banana
-		Index                 :banana.html
-		Auto Index            :1
-		Accepted Http Methods :1
-		CGI Path              :
-		Error Page            :error.html
-		Client Max Body Size  :0
-	},	
-	{
-		Root                  :/resources
-		Path                  :/upload
-		Index                 :upload2.html
-		Auto Index            :0
-		Accepted Http Methods :7
-		CGI Path              :
-		Error Page            :error.html
-		Client Max Body Size  :0
-	},	
-	{
-		Root                  :/resources
-		Path                  :/delete
-		Index                 :delete.html
-		Auto Index            :0
-		Accepted Http Methods :7
-		CGI Path              :
-		Error Page            :error.html
-		Client Max Body Size  :0
-	},	
-	{
-		Root                  :/resources
-		Path                  :/cgi-bin
-		Index                 :current_time.py
-		Auto Index            :0
-		Accepted Http Methods :3
-		CGI Path              :/usr/bin/python3
-		Error Page            :error.html
-		Client Max Body Size  :0
-	}	
-]
-
-***********************************************************************
-
-Server Name          : www.example.org
-Listen               : 10029
-Client Max Body Size : 0
-Error Page           : error.html
-Root                 : /resources
-Location             : [
-	{
-		Root                  :/resources
-		Path                  :/
-		Index                 :index.html
-		Auto Index            :1
-		Accepted Http Methods :1
+		Accepted Http Methods :2
 		CGI Path              :
 		Error Page            :error.html
 		Client Max Body Size  :0
@@ -153,7 +153,7 @@ Location             : [
 		Path                  :/cgi-bin
 		Index                 :cgi-bin.html
 		Auto Index            :0
-		Accepted Http Methods :1
+		Accepted Http Methods :3
 		CGI Path              :
 		Error Page            :error.html
 		Client Max Body Size  :0
@@ -163,285 +163,12 @@ Location             : [
 ***********************************************************************
 
 Port 10028 is listening.
-Port 10029 is listening.
 File descriptor 3 is polling...
-File descriptor 4 is polling...
-Selected server name: www.example.com
+Selected server name: yaggoman.com:10028
 
 ========== Request ==========
 
-GET /jaji/cgi-bin/current_time.py HTTP/1.1
-Host: localhost:10028
-Connection: keep-alive
-Cache-Control: max-age=0
-sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"
-sec-ch-ua-mobile: ?0
-sec-ch-ua-platform: "macOS"
-Upgrade-Insecure-Requests: 1
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36
-Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
-Sec-Fetch-Site: none
-Sec-Fetch-Mode: navigate
-Sec-Fetch-User: ?1
-Sec-Fetch-Dest: document
-Accept-Encoding: gzip, deflate, br
-Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7
-
-
-=============================
-
-Selected location path: /
-Accepted HTTP Methods: 1
-Request Method: 1
-URL RESPOJSE:/resources/error.html
-========== Response =========
-HTTP/1.1 404 Not Found
-Connection: keep-alive
-Content-Length: 1181
-Content-Type: text/html
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to webserv</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .container {
-            text-align: center;
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-			width: 40%;
-        }
-        h1 {
-            color: #CC0000;
-            font-size: 2.5rem;
-            margin-bottom: 20px;
-        }
-        p {
-            color: #EE0000;
-            font-size: 1.2rem;
-        }
-		.logo {
-            max-width: 200
-=============================
-========== Response =========
-px;
-            margin-top: 20px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-		<img src="/42_logo.svg" alt="42 Logo" class="logo">
-        <h1>Error</h1>
-        <p>There was an error on the webserv.</p>
-    </div>
-</body>
-</html>
-
-=============================
-Selected server name: www.example.com
-
-========== Request ==========
-
-GET /42_logo.svg HTTP/1.1
-Host: localhost:10028
-Connection: keep-alive
-sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"
-sec-ch-ua-mobile: ?0
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36
-sec-ch-ua-platform: "macOS"
-Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
-Sec-Fetch-Site: same-origin
-Sec-Fetch-Mode: no-cors
-Sec-Fetch-Dest: image
-Referer: http://localhost:10028/jaji/cgi-bin/current_time.py
-Accept-Encoding: gzip, deflate, br
-Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7
-
-
-=============================
-
-Selected location path: /
-Accepted HTTP Methods: 1
-Request Method: 1
-URL RESPOJSE:/resources/42_logo.svg
-========== Response =========
-HTTP/1.1 200 OK
-Connection: keep-alive
-Content-Length: 1146
-Content-Type: image/svg+xml
-
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 18.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1"
-	 id="Calque_1" sodipodi:docname="42_logo.svg" inkscape:version="0.48.2 r9819" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:svg="http://www.w3.org/2000/svg" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-	 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 -200 960 960"
-	 enable-background="new 0 -200 960 960" xml:space="preserve">
-<polygon id="polygon5" points="32,412.6 362.1,412.6 362.1,578 526.8,578 526.8,279.1 197.3,279.1 526.8,-51.1 362.1,-51.1 
-	32,279.1 "/>
-<polygon id="polygon7" points="597.9,114.2 762.7,-51.1 597.9,
-=============================
-========== Response =========
--51.1 "/>
-<polygon id="polygon9" points="762.7,114.2 597.9,279.1 597.9,443.9 762.7,443.9 762.7,279.1 928,114.2 928,-51.1 762.7,-51.1 "/>
-<polygon id="polygon11" points="928,279.1 762.7,443.9 928,443.9 "/>
-</svg>
-
-=============================
-Selected server name: www.example.com
-
-========== Request ==========
-
-GET //cgi-bin/current_time.py HTTP/1.1
-Host: localhost:10028
-Connection: keep-alive
-sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"
-sec-ch-ua-mobile: ?0
-sec-ch-ua-platform: "macOS"
-Upgrade-Insecure-Requests: 1
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36
-Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
-Sec-Fetch-Site: none
-Sec-Fetch-Mode: navigate
-Sec-Fetch-User: ?1
-Sec-Fetch-Dest: document
-Accept-Encoding: gzip, deflate, br
-Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7
-
-
-=============================
-
-Selected location path: /
-Accepted HTTP Methods: 1
-Request Method: 1
-URL RESPOJSE:/resources/error.html
-========== Response =========
-HTTP/1.1 404 Not Found
-Connection: keep-alive
-Content-Length: 1181
-Content-Type: text/html
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to webserv</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .container {
-            text-align: center;
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-			width: 40%;
-        }
-        h1 {
-            color: #CC0000;
-            font-size: 2.5rem;
-            margin-bottom: 20px;
-        }
-        p {
-            color: #EE0000;
-            font-size: 1.2rem;
-        }
-		.logo {
-            max-width: 200
-=============================
-========== Response =========
-px;
-            margin-top: 20px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-		<img src="/42_logo.svg" alt="42 Logo" class="logo">
-        <h1>Error</h1>
-        <p>There was an error on the webserv.</p>
-    </div>
-</body>
-</html>
-
-=============================
-Selected server name: www.example.com
-
-========== Request ==========
-
-GET /42_logo.svg HTTP/1.1
-Host: localhost:10028
-Connection: keep-alive
-sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"
-sec-ch-ua-mobile: ?0
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36
-sec-ch-ua-platform: "macOS"
-Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
-Sec-Fetch-Site: same-origin
-Sec-Fetch-Mode: no-cors
-Sec-Fetch-Dest: image
-Referer: http://localhost:10028//cgi-bin/current_time.py
-Accept-Encoding: gzip, deflate, br
-Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7
-
-
-=============================
-
-Selected location path: /
-Accepted HTTP Methods: 1
-Request Method: 1
-URL RESPOJSE:/resources/42_logo.svg
-========== Response =========
-HTTP/1.1 200 OK
-Connection: keep-alive
-Content-Length: 1146
-Content-Type: image/svg+xml
-
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 18.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1"
-	 id="Calque_1" sodipodi:docname="42_logo.svg" inkscape:version="0.48.2 r9819" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:svg="http://www.w3.org/2000/svg" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-	 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 -200 960 960"
-	 enable-background="new 0 -200 960 960" xml:space="preserve">
-<polygon id="polygon5" points="32,412.6 362.1,412.6 362.1,578 526.8,578 526.8,279.1 197.3,279.1 526.8,-51.1 362.1,-51.1 
-	32,279.1 "/>
-<polygon id="polygon7" points="597.9,114.2 762.7,-51.1 597.9,
-=============================
-========== Response =========
--51.1 "/>
-<polygon id="polygon9" points="762.7,114.2 597.9,279.1 597.9,443.9 762.7,443.9 762.7,279.1 928,114.2 928,-51.1 762.7,-51.1 "/>
-<polygon id="polygon11" points="928,279.1 762.7,443.9 928,443.9 "/>
-</svg>
-
-=============================
-Selected server name: www.example.com
-
-========== Request ==========
-
-GET /cgi-bin/current_time.py HTTP/1.1
+GET /cgi-bin/ HTTP/1.1
 Host: localhost:10028
 Connection: keep-alive
 sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"
@@ -542,35 +269,34 @@ eTime;
     
 
 =============================
-Selected server name: www.example.com
+Selected server name: yaggoman.com:10028
 
 ========== Request ==========
 
-GET /cgi-bin/current_time..py HTTP/1.1
+GET /favicon.ico HTTP/1.1
 Host: localhost:10028
 Connection: keep-alive
 sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"
 sec-ch-ua-mobile: ?0
-sec-ch-ua-platform: "macOS"
-Upgrade-Insecure-Requests: 1
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36
-Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
-Sec-Fetch-Site: none
-Sec-Fetch-Mode: navigate
-Sec-Fetch-User: ?1
-Sec-Fetch-Dest: document
+sec-ch-ua-platform: "macOS"
+Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
+Sec-Fetch-Site: same-origin
+Sec-Fetch-Mode: no-cors
+Sec-Fetch-Dest: image
+Referer: http://localhost:10028/cgi-bin/
 Accept-Encoding: gzip, deflate, br
 Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7
 
 
 =============================
 
-Selected location path: /cgi-bin
-Accepted HTTP Methods: 3
+Selected location path: /
+Accepted HTTP Methods: 2
 Request Method: 1
 URL RESPOJSE:/resources/error.html
 ========== Response =========
-HTTP/1.1 404 Not Found
+HTTP/1.1 405 Method Not Allowed
 Connection: keep-alive
 Content-Length: 1181
 Content-Type: text/html
@@ -610,10 +336,10 @@ Content-Type: text/html
             font-size: 1.2rem;
         }
 		.logo {
-            max-width: 200
+            max-w
 =============================
 ========== Response =========
-px;
+idth: 200px;
             margin-top: 20px;
         }
     </style>
@@ -628,11 +354,99 @@ px;
 </html>
 
 =============================
-Selected server name: www.example.com
+Selected server name: yaggoman.com:10028
 
 ========== Request ==========
 
-GET /42_logo.svg HTTP/1.1
+GET /cgi-bin/cal.py HTTP/1.1
+Host: localhost:10028
+Connection: keep-alive
+sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"
+sec-ch-ua-mobile: ?0
+sec-ch-ua-platform: "macOS"
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+Sec-Fetch-Site: none
+Sec-Fetch-Mode: navigate
+Sec-Fetch-User: ?1
+Sec-Fetch-Dest: document
+Accept-Encoding: gzip, deflate, br
+Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7
+
+
+=============================
+
+Selected location path: /cgi-bin
+Accepted HTTP Methods: 3
+Request Method: 1
+HTTP/1.1 200 OK
+Content-type: text/html
+Content-Length: 727
+
+<html>
+<head>
+<title>Simple Calculator</title>
+</head>
+<body>
+<h1>Simple Calculator</h1>
+
+<form method="post" action="/cgi-bin/cal.py">
+    <label for="num1">First Number:</label>
+    <input type="text" id="num1" name="num1"><br><br>
+    <label for="num2">Second Number:</label>
+    <input type="text" id="num2" name="num2"><br><br>
+    <label for="operation">Operation:</label>
+    <select id="operation" name="operation">
+        <option value="add">Add</option>
+        <option value="subtract">Subtract</option>
+        <option value="multiply">Multiply</option>
+        <option value="divide">Divide</option>
+    </select><br><br>
+    <input type="submit" value="Calculate">
+</form>
+
+None None None = None
+</body>
+</html>
+
+========== Response =========
+HTTP/1.1 200 OK
+Content-type: text/html
+Content-Length: 727
+
+<html>
+<head>
+<title>Simple Calculator</title>
+</head>
+<body>
+<h1>Simple Calculator</h1>
+
+<form method="post" action="/cgi-bin/cal.py">
+    <label for="num1">First Number:</label>
+    <input type="text" id="num1" name="num1"><br><br>
+    <label for="num2">Second Number:</label>
+    <input type="text" id="num2" name="num2"><br><br>
+    <label for="operation">Operation:</label>
+    <select id="operation" name="operation">
+        <option value="add">Add</option>
+        <option value="subtract">Subtract</option>
+        <option value="multiply">Multiply</option>
+        <option value="divide">Divide</option>
+    </select><br><br>
+    <input type="submit" value="Calculate">
+</form>
+
+None None None = None
+</body>
+</html>
+
+=============================
+Selected server name: yaggoman.com:10028
+
+========== Request ==========
+
+GET /favicon.ico HTTP/1.1
 Host: localhost:10028
 Connection: keep-alive
 sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"
@@ -643,7 +457,7 @@ Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
 Sec-Fetch-Site: same-origin
 Sec-Fetch-Mode: no-cors
 Sec-Fetch-Dest: image
-Referer: http://localhost:10028/cgi-bin/current_time..py
+Referer: http://localhost:10028/cgi-bin/cal.py
 Accept-Encoding: gzip, deflate, br
 Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7
 
@@ -651,29 +465,99 @@ Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7
 =============================
 
 Selected location path: /
-Accepted HTTP Methods: 1
+Accepted HTTP Methods: 2
 Request Method: 1
-URL RESPOJSE:/resources/42_logo.svg
+URL RESPOJSE:/resources/error.html
 ========== Response =========
-HTTP/1.1 200 OK
+HTTP/1.1 405 Method Not Allowed
 Connection: keep-alive
-Content-Length: 1146
-Content-Type: image/svg+xml
+Content-Length: 1181
+Content-Type: text/html
 
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 18.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1"
-	 id="Calque_1" sodipodi:docname="42_logo.svg" inkscape:version="0.48.2 r9819" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:svg="http://www.w3.org/2000/svg" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-	 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 -200 960 960"
-	 enable-background="new 0 -200 960 960" xml:space="preserve">
-<polygon id="polygon5" points="32,412.6 362.1,412.6 362.1,578 526.8,578 526.8,279.1 197.3,279.1 526.8,-51.1 362.1,-51.1 
-	32,279.1 "/>
-<polygon id="polygon7" points="597.9,114.2 762.7,-51.1 597.9,
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to webserv</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+			width: 40%;
+        }
+        h1 {
+            color: #CC0000;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #EE0000;
+            font-size: 1.2rem;
+        }
+		.logo {
+            max-w
 =============================
 ========== Response =========
--51.1 "/>
-<polygon id="polygon9" points="762.7,114.2 597.9,279.1 597.9,443.9 762.7,443.9 762.7,279.1 928,114.2 928,-51.1 762.7,-51.1 "/>
-<polygon id="polygon11" points="928,279.1 762.7,443.9 928,443.9 "/>
-</svg>
+idth: 200px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+		<img src="/42_logo.svg" alt="42 Logo" class="logo">
+        <h1>Error</h1>
+        <p>There was an error on the webserv.</p>
+    </div>
+</body>
+</html>
 
+=============================
+Selected server name: yaggoman.com:10028
+
+========== Request ==========
+
+POST /cgi-bin/cal.py HTTP/1.1
+Host: localhost:10028
+Connection: keep-alive
+Content-Length: 27
+Cache-Control: max-age=0
+sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"
+sec-ch-ua-mobile: ?0
+sec-ch-ua-platform: "macOS"
+Upgrade-Insecure-Requests: 1
+Origin: http://localhost:10028
+Content-Type: application/x-www-form-urlencoded
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+Sec-Fetch-Site: same-origin
+Sec-Fetch-Mode: navigate
+Sec-Fetch-User: ?1
+Sec-Fetch-Dest: document
+Referer: http://localhost:10028/cgi-bin/cal.py
+Accept-Encoding: gzip, deflate, br
+Accept-Language: ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7
+
+num1=1&num2=2&operation=add
+=============================
+
+Selected location path: /cgi-bin
+Accepted HTTP Methods: 3
+Request Method: 2
+========== Response =========
+num1=1&num2=2&operation=add
 =============================

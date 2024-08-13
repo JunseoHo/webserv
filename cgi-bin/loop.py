@@ -3,6 +3,7 @@
 import cgi
 import os
 import datetime
+import time
 
 # Enable debugging
 
@@ -18,6 +19,9 @@ operation = form.getvalue("operation")
 if num1 is not None and num2 is not None:
     num1 = int(num1)
     num2 = int(num2)
+
+while True:
+    pass
 
 # Perform the calculation
 result = None
@@ -42,6 +46,9 @@ print("<title>Simple Calculator</title>")
 print("</head>")
 print("<body>")
 print("<h1>Simple Calculator</h1>")
+
+# Display the current time
+print(datetime.datetime.strftime(datetime.datetime.now(), "<h2>Current Time: %H:%M:%S</h2>"))
 
 # Display the form
 print("""

@@ -22,16 +22,15 @@ void Core::Start() {
         _pollFds[i].revents = 0;
 		std::cout << "File descriptor " << it->first << " is polling..." << std::endl;
     }
-
     eventLoop();
 }
-
 
 void Core::eventLoop() {
     while (true) {
         try {
-            // std::cout << "Polling..." << std::endl;
-            int pollResult = poll(_pollFds.data(), _pollFds.size(), -1);
+            handleTimeoutCGI();
+            int pollResult = poll(_pollFds.data(), _pollFds.size(), 1000);
+            
             if (pollResult == -1)
                 throw std::runtime_error("poll failed");
             for (int i = 0; i < _pollFds.size(); i++) {
@@ -44,21 +43,38 @@ void Core::eventLoop() {
                         int clientFd = _socketManager.GetClientFdByCgiFd(_pollFds[i].fd);
                         handleCgiEvent(_pollFds[i].fd, clientFd);
                     } else if (!_socketManager.isConnectedClinetToCgi(_pollFds[i].fd)) {  // 클라이언트 소켓인 경우
-                        handleEvent(_pollFds[i].fd);
+						handleEvent(_pollFds[i].fd);
                         if (!_responseBufferManager.isBufferEmpty(_pollFds[i].fd))
                             _pollFds[i].events = POLLOUT;
                     }
                 } else if (_pollFds[i].revents & POLLOUT) {
                     handleOutEvent(_pollFds[i].fd);
-                    if (_responseBufferManager.isBufferEmpty(_pollFds[i].fd))
-                    {
-                        if (_bufferManager.isBufferEmpty(_pollFds[i].fd) && _cgiBufferManager.isBufferEmpty(_pollFds[i].fd))
-                        {
+                    
+                    if (_responseBufferManager.isBufferEmpty(_pollFds[i].fd)) {
+                        if (_bufferManager.isBufferEmpty(_pollFds[i].fd) && _cgiBufferManager.isBufferEmpty(_pollFds[i].fd)) {
+                            for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end();)
+                            {
+                                if (_pollFds[i].fd == it->clientFd) {
+                                    close(_pollFds[i].fd);
+                                    _socketManager.disconnectCgiToClient(it->clientFd);
+                                    _cgiPidsInfo.erase(it);
+                                    break;
+                                }
+                                else
+                                    ++it;
+                            }
                             _pollFds.erase(_pollFds.begin() + i);
                             i--;
                         }
                         else
                             _pollFds[i].events = POLLIN;
+                    }
+                }
+                else
+                {
+                    if (_pollFds[i].revents & POLLNVAL) {
+                        _pollFds.erase(_pollFds.begin() + i);
+                        i--;
                     }
                 }
             }
@@ -163,7 +179,7 @@ void Core::handleEvent(int clientSocketFd) {
 
     std::cout << "Selected location path: " << location.path << std::endl;
 
-    // method가 허용되지 않으면 405
+    // method가 허용되지 않으면 
     std::cout << "Accepted HTTP Methods: " << location.acceptedHttpMethods << std::endl;
     std::cout << "Request Method: " << httpRequest.method << std::endl;
     if (!(location.acceptedHttpMethods & httpRequest.method)) {
@@ -174,8 +190,10 @@ void Core::handleEvent(int clientSocketFd) {
     std::string target = uri.find("?") != std::string::npos ? uri.substr(0, uri.find("?")) : uri;
 
     if (access(target.substr(1).c_str(), F_OK) == -1 && (uri.find("/cgi-bin/") == std::string::npos || httpRequest.target.find("/cgi-bin/") != 0))
-		if (statusCode == 200)
+	{
+		if (httpRequest.method != POST && statusCode == 200)
         	statusCode = 404;
+	}
 
     if (statusCode != 200)
     {
@@ -198,7 +216,6 @@ void Core::handleEvent(int clientSocketFd) {
 
 void Core::executeCGI(std::string uri, HttpRequest &request, int clientSocketFd, Location location)
 {
-
     std::string scriptPath = uri.substr(0, uri.find(".py") + 3);
     std::string pathInfo = uri.substr(uri.find(".py") + 3, uri.find("?") - uri.find(".py") - 3);
     std::string queryString = uri.substr(uri.find("?") + 1);
@@ -215,15 +232,13 @@ void Core::executeCGI(std::string uri, HttpRequest &request, int clientSocketFd,
 
     if (script.empty() && !location.index.empty())
         script = location.index;
-    else if (script.empty() && location.index.empty())
-    {
+    else if (script.empty() && location.index.empty()) {
         HttpResponse httpResponse(location.root + "/" + location.errorPage, request, 404);
         _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
         return;
     }
 
-    if (access(("cgi-bin/" + script).c_str(), F_OK) == -1 || script.find(".py") == std::string::npos)
-    {
+    if (access(("cgi-bin/" + script).c_str(), F_OK) == -1 || script.find(".py") == std::string::npos) {
         HttpResponse httpResponse(location.root + "/" + location.errorPage, request, 404);
         _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
         return;
@@ -231,38 +246,27 @@ void Core::executeCGI(std::string uri, HttpRequest &request, int clientSocketFd,
 
     int cgiInPipe[2];
     int cgiOutPipe[2];
-    if (pipe(cgiInPipe) == -1)
-    {
+    if (pipe(cgiInPipe) == -1) {
         std::cerr << "Failed to create pipe: " << std::strerror(errno) << '\n';
         return;
     }
-    if (pipe(cgiOutPipe) == -1)
-    {
+    if (pipe(cgiOutPipe) == -1) {
         std::cerr << "Failed to create pipe: " << std::strerror(errno) << '\n';
         return;
     }
-    setNonBlocking(cgiInPipe[0]);
-    setNonBlocking(cgiInPipe[1]);
-    setNonBlocking(cgiOutPipe[0]);
-    setNonBlocking(cgiOutPipe[1]);
+    setNonBlocking(cgiInPipe[0]); setNonBlocking(cgiInPipe[1]); setNonBlocking(cgiOutPipe[0]); setNonBlocking(cgiOutPipe[1]);
 
     pid_t pid = fork();
-    if (pid == -1)
-    {
+    if (pid == -1) {
         std::cerr << "Failed to fork: " << std::strerror(errno) << '\n';
         return;
     }
 
-    if (pid == 0)
-    {
-        close(cgiInPipe[1]);
-        close(cgiOutPipe[0]);
-        dup2(cgiInPipe[0], STDIN_FILENO);
-        dup2(cgiOutPipe[1], STDOUT_FILENO);
-        close(cgiInPipe[0]);
-        close(cgiOutPipe[1]);
+    if (pid == 0) {
+        close(cgiInPipe[1]); close(cgiOutPipe[0]);
+        dup2(cgiInPipe[0], STDIN_FILENO); dup2(cgiOutPipe[1], STDOUT_FILENO);
+        close(cgiInPipe[0]); close(cgiOutPipe[1]);
 
-        
         char **args = (char **)malloc(sizeof(char *) * 3);
         args[0] = strdup(interpreter.c_str());
         args[1] = strdup(("cgi-bin/" + script).c_str());
@@ -293,6 +297,15 @@ void Core::executeCGI(std::string uri, HttpRequest &request, int clientSocketFd,
     }
     close(cgiInPipe[0]);
     close(cgiOutPipe[1]);
+
+    cgiPidsInfo cgiPidInfo;
+    cgiPidInfo.clientFd = clientSocketFd;
+    cgiPidInfo.pid = pid;
+    cgiPidInfo.startTime = std::time(nullptr);
+	cgiPidInfo.request = request;
+	cgiPidInfo.uri = uri;
+	cgiPidInfo.location = location;
+    _cgiPidsInfo.push_back(cgiPidInfo);    
     // request 전문을 파이프로 전달
     if (request.method == POST) {
         pollfd pollFdOut;
@@ -368,14 +381,6 @@ void Core::getMethod(std::string& uri,
             statusCode = 404;
     }
 
-    // clientMaxBodySize가 0이 아닌 경우, body size 체크, 초과시 413
-    if (location.clientMaxBodySize != 0 && httpRequest.headers.find("Content-Length") != httpRequest.headers.end())
-    {
-        size_t contentLength = std::stoi(httpRequest.headers["Content-Length"]);
-        if (contentLength > location.clientMaxBodySize)
-            statusCode = 413;
-    }
-
     if (statusCode != 200)
     {
         uri = location.root + "/" + location.errorPage;
@@ -389,30 +394,115 @@ void Core::getMethod(std::string& uri,
 }
 
 void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location& location, int& clientSocketFd) {
-    int statusCode = 201;
-    // POST 요청 처리
-    // uri가 디렉토리인지 확인
-    if (!isDirectory(uri.substr(1)))
-        statusCode = 404;
-    std::string contentType = httpRequest.headers["Content-Type"];
-    std::cout << contentType << std::endl;
-    if (contentType.find("multipart/form-data") != std::string::npos) {
-        std::string boundary = "--" + contentType.substr(contentType.find("boundary=") + 9);
-        std::string path = location.root + location.path;
-        if (isDirectory(path.substr(1)))
-        {
-            std::cout << "Multipart data received" << std::endl;
-            if (path.back() != '/')
-                path += '/';
-            parse_multipart_data(path.substr(1), httpRequest.body, boundary);
-        }
-        else
-            statusCode = 404;
+	std::string scriptPath = "resources/cgi-bin/post.py";
+    std::string pathInfo = "";
+    std::string queryString = "";
+    std::string interpreter = "/usr/local/bin/python3"; // revise
+    std::string script = "post.py";
+    std::cerr << "scriptPath: " << scriptPath << '\n';
+    std::cerr << "pathInfo: " << pathInfo << '\n';
+    std::cerr << "queryString: " << queryString << '\n';
+    std::cerr << "interpreter: " << interpreter << '\n';
+    std::cerr << "script: " << script << '\n';
+    std::cerr << "uri: " << uri << '\n';
+
+	if (location.clientMaxBodySize != 0 && httpRequest.body.size() > location.clientMaxBodySize)
+	{
+		HttpResponse response(location.root + "/" + location.errorPage, httpRequest, 413);
+		_responseBufferManager.appendBuffer(clientSocketFd, response.full.c_str(), response.full.size());
+		return ;
+	}
+
+    if (script.empty() && !location.index.empty())
+        script = location.index;
+    else if (script.empty() && location.index.empty())
+    {
+        HttpResponse httpResponse(location.root + "/" + location.errorPage, httpRequest, 404);
+        _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+        return;
     }
-    else
-        statusCode = 400;
-    HttpResponse httpResponse(uri, httpRequest, statusCode);
-    _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+    if (access(("cgi-bin/" + script).c_str(), F_OK) == -1 || script.find(".py") == std::string::npos)
+    {
+        HttpResponse httpResponse(location.root + "/" + location.errorPage, httpRequest, 404);
+        _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+        return;
+    }
+    int cgiInPipe[2];
+    int cgiOutPipe[2];
+    if (pipe(cgiInPipe) == -1)
+    {
+        std::cerr << "Failed to create pipe: " << std::strerror(errno) << '\n';
+        return;
+    }
+    if (pipe(cgiOutPipe) == -1)
+    {
+        std::cerr << "Failed to create pipe: " << std::strerror(errno) << '\n';
+        return;
+    }
+    setNonBlocking(cgiInPipe[0]);
+    setNonBlocking(cgiInPipe[1]);
+    setNonBlocking(cgiOutPipe[0]);
+    setNonBlocking(cgiOutPipe[1]);
+
+    pid_t pid = fork();
+    if (pid == -1)
+    {
+        std::cerr << "Failed to fork: " << std::strerror(errno) << '\n';
+        return;
+    }
+
+    if (pid == 0)
+    {
+        close(cgiInPipe[1]); close(cgiOutPipe[0]);
+        dup2(cgiInPipe[0], STDIN_FILENO); dup2(cgiOutPipe[1], STDOUT_FILENO);
+        close(cgiInPipe[0]); close(cgiOutPipe[1]);
+        
+        char **args = (char **)malloc(sizeof(char *) * 3);
+        args[0] = strdup(interpreter.c_str());
+        args[1] = strdup(("cgi-bin/" + script).c_str());
+        args[2] = NULL;
+        std::vector<std::string> envStrings;
+        envStrings.push_back("SCRIPT_FILENAME=" + scriptPath);
+        envStrings.push_back("PATH_INFO=" + pathInfo);
+        envStrings.push_back("QUERY_STRING=" + queryString);
+        std::string method = httpRequest.method == GET ? "GET" : "POST";
+        envStrings.push_back("REQUEST_METHOD=" + method);
+        envStrings.push_back("REDIRECT_STATUS=200");
+        envStrings.push_back("CONTENT_LENGTH=" + std::to_string(httpRequest.body.size()));
+        envStrings.push_back("CONTENT_TYPE=" + httpRequest.headers["Content-Type"]);
+        envStrings.push_back("SERVER_PROTOCOL=" + httpRequest.version);
+        envStrings.push_back("SERVER_SOFTWARE=webserv");
+        envStrings.push_back("SERVER_NAME=" + httpRequest.headers["Host"]);
+        envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
+        envStrings.push_back("TARGET=" + httpRequest.target.substr(1));
+
+        // char* 배열로 변환
+        std::vector<char*> env(envStrings.size() + 1); // +1 for NULL terminator
+        for (size_t i = 0; i < envStrings.size(); ++i) {
+            env[i] = const_cast<char*>(envStrings[i].c_str());
+        }
+        env[envStrings.size()] = NULL; // NULL terminator
+        execve(args[0], args, env.data());
+        exit(1);
+    }
+    // request 전문을 파이프로 전달
+    if (httpRequest.method == POST) {
+        pollfd pollFdOut;
+        pollFdOut.fd = cgiInPipe[1];
+        pollFdOut.events = POLLOUT;
+        pollFdOut.revents = 0;
+        _pollFds.push_back(pollFdOut);
+        _responseBufferManager.appendBuffer(cgiInPipe[1], httpRequest.body.c_str(), httpRequest.body.size());
+        close(cgiInPipe[1]);
+    }
+    pollfd pollFd;
+    pollFd.fd = cgiOutPipe[0];
+    pollFd.events = POLLIN;
+    pollFd.revents = 0;
+    _pollFds.push_back(pollFd);
+    _cgiBufferManager.addBuffer(cgiOutPipe[0]);
+    _socketManager.connectCgiToClient(cgiOutPipe[0], clientSocketFd);
+    close(cgiOutPipe[0]);
 }
 
 void Core::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd) {
@@ -424,4 +514,38 @@ void Core::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusC
         remove(uri.substr(1).c_str());
     HttpResponse httpResponse(uri, httpRequest, statusCode);
     _responseBufferManager.appendBuffer(clientSocketFd, httpResponse.full.c_str(), httpResponse.full.size());
+}
+
+
+void Core::handleTimeoutCGI() {
+    int status;
+    time_t currentTime = std::time(nullptr);
+    for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end();)
+    {
+        time_t result = currentTime - it->startTime;
+        std::cerr << "duration: " << result << '\n';
+        if (result > TIME_LIMIT)
+        {
+            kill(it->pid, SIGKILL);
+            waitpid(it->pid, &status, 0);
+            HttpResponse response(it->location.root + "/" + it->location.errorPage, it->request, 413);
+            _responseBufferManager.removeBuffer(it->clientFd);
+            _responseBufferManager.appendBuffer(it->clientFd, response.full.c_str(), response.full.size());
+			std::vector<pollfd>::iterator clientPollFdIt = _pollFds.end();
+			_cgiPidsInfo.erase(it);
+        } else {
+            pid_t pid = waitpid(it->pid, &status, WNOHANG);
+			if (pid > 0 && WEXITSTATUS(status) != 0)
+			{
+				HttpResponse response(it->location.root + "/" + it->location.errorPage, it->request, 500);
+                _responseBufferManager.removeBuffer(it->clientFd);
+			    _responseBufferManager.appendBuffer(it->clientFd, response.full.c_str(), response.full.size());
+				_cgiPidsInfo.erase(it);
+			}
+			else
+			{
+				++it;
+			}
+        }
+    }
 }
