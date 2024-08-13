@@ -9,7 +9,6 @@ HttpResponse::HttpResponse()
 
 HttpResponse::HttpResponse(const std::string& cgiResponse)
 {
-    std::cout << "CGI RESPONSE:" << cgiResponse << std::endl;
 	// 1. \r\n\r\n을 기준으로 S를 두 부분으로 나눈다.
     size_t delimiterPos = cgiResponse.find("\r\n\r\n");
     if (delimiterPos == std::string::npos) {
@@ -215,5 +214,4 @@ void HttpResponse::setResponse(const std::string& uri, const HttpRequest &reques
     for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); it++)
         full += it->first + ": " + it->second + "\r\n";
     full += "\r\n" + body;
-
 }

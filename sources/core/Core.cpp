@@ -30,7 +30,9 @@ void Core::eventLoop() {
         try {
             // std::cout << "Polling..." << std::endl;
             handleTimeoutCGI();
-            int pollResult = poll(_pollFds.data(), _pollFds.size(), 1);
+            int pollResult = poll(_pollFds.data(), _pollFds.size(), 1000);
+            std::cout << "Size of pollFds:" << _pollFds.size() << std::endl;
+            
             if (pollResult == -1)
                 throw std::runtime_error("poll failed");
             for (int i = 0; i < _pollFds.size(); i++) {
@@ -49,6 +51,7 @@ void Core::eventLoop() {
                     }
                 } else if (_pollFds[i].revents & POLLOUT) {
                     handleOutEvent(_pollFds[i].fd);
+                    
                     if (_responseBufferManager.isBufferEmpty(_pollFds[i].fd)) {
                         if (_bufferManager.isBufferEmpty(_pollFds[i].fd) && _cgiBufferManager.isBufferEmpty(_pollFds[i].fd)) {
                             for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end();)
@@ -59,6 +62,8 @@ void Core::eventLoop() {
                                     _cgiPidsInfo.erase(it);
                                     break;
                                 }
+                                else
+                                    ++it;
                             }
                             _pollFds.erase(_pollFds.begin() + i);
                             i--;
@@ -66,6 +71,24 @@ void Core::eventLoop() {
                         else
                             _pollFds[i].events = POLLIN;
                     }
+                    std::cout << "IF OK" << std::endl;
+                }
+                else
+                {
+                    std::ostringstream logStream;
+                    logStream << "Unexpected event on fd " << _pollFds[i].fd << ": ";
+                    if (_pollFds[i].revents & POLLERR) {
+                        logStream << "POLLERR ";
+                    }
+                    if (_pollFds[i].revents & POLLHUP) {
+                        logStream << "POLLHUP ";
+                    }
+                    if (_pollFds[i].revents & POLLNVAL) {
+                        logStream << "POLLNVAL ";
+                        _pollFds.erase(_pollFds.begin() + i);
+                        i--;
+                    }
+                    std::cout << logStream.str() << std::endl;
                 }
             }
         } catch (std::exception &e) {
