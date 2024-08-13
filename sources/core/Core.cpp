@@ -30,7 +30,6 @@ void Core::eventLoop() {
         try {
             handleTimeoutCGI();
             int pollResult = poll(_pollFds.data(), _pollFds.size(), 1000);
-            
             if (pollResult == -1)
                 throw std::runtime_error("poll failed");
             for (int i = 0; i < _pollFds.size(); i++) {
@@ -88,9 +87,9 @@ void Core::handleOutEvent(int clientSocketFd) {
     if (_responseBufferManager.isBufferEmpty(clientSocketFd))
         return ;
     std::string response = _responseBufferManager.GetSubBuffer(clientSocketFd, BUFFER_SIZE);
-    std::cout << "========== Response =========" << std::endl;
+    std::cout << "========== Response Chunk =========" << std::endl;
     std::cout << response << '\n';
-    std::cout << "=============================" << std::endl;
+    std::cout << "===================================" << std::endl;
     ssize_t size = write(clientSocketFd, response.c_str(), response.size());;
     if (size < 0)
     {
@@ -332,7 +331,6 @@ void Core::handleCgiEvent(int cgiPipeFd, int clientFd)
 		_cgiBufferManager.appendBuffer(cgiPipeFd, buffer, size);
         return;
     }
-
 	if (size < 0)
 	{
 		std::cerr << "read failed: " << strerror(errno) << '\n';
@@ -485,6 +483,15 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location
         execve(args[0], args, env.data());
         exit(1);
     }
+	close(cgiInPipe[0]); close(cgiOutPipe[1]);
+    cgiPidsInfo cgiPidInfo;
+    cgiPidInfo.clientFd = clientSocketFd;
+    cgiPidInfo.pid = pid;
+    cgiPidInfo.startTime = std::time(nullptr);
+	cgiPidInfo.request = httpRequest;
+	cgiPidInfo.uri = uri;
+	cgiPidInfo.location = location;
+    _cgiPidsInfo.push_back(cgiPidInfo);
     // request 전문을 파이프로 전달
     if (httpRequest.method == POST) {
         pollfd pollFdOut;
@@ -493,7 +500,6 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location
         pollFdOut.revents = 0;
         _pollFds.push_back(pollFdOut);
         _responseBufferManager.appendBuffer(cgiInPipe[1], httpRequest.body.c_str(), httpRequest.body.size());
-        close(cgiInPipe[1]);
     }
     pollfd pollFd;
     pollFd.fd = cgiOutPipe[0];
@@ -502,7 +508,6 @@ void Core::postMethod(std::string& uri, HttpRequest& httpRequest, const Location
     _pollFds.push_back(pollFd);
     _cgiBufferManager.addBuffer(cgiOutPipe[0]);
     _socketManager.connectCgiToClient(cgiOutPipe[0], clientSocketFd);
-    close(cgiOutPipe[0]);
 }
 
 void Core::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusCode, int& clientSocketFd) {
@@ -523,7 +528,6 @@ void Core::handleTimeoutCGI() {
     for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end();)
     {
         time_t result = currentTime - it->startTime;
-        std::cerr << "duration: " << result << '\n';
         if (result > TIME_LIMIT)
         {
             kill(it->pid, SIGKILL);

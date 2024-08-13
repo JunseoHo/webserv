@@ -2,13 +2,13 @@ server:
   listen: 10028
   server_name: yaggoman.com:10028
   error_page: error.html
-  client_max_body_size: 3
+  client_max_body_size: 0
   root: /resources
   location: /
-    allow_methods: GET
+    allow_methods: GET POST
     index: index.html
     autoindex: off
-    client_max_body_size: 3
+    client_max_body_size: 0
     error_page: error.html
   location: /guide
     allow_methods: GET

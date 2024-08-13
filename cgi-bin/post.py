@@ -2,7 +2,7 @@ import cgi
 import os
 import sys
 
-UPLOAD_DIR = 'resources/uploads'  # 파일을 저장할 디렉토리
+UPLOAD_DIR = 'uploads'  # 파일을 저장할 디렉토리
 
 def save_uploaded_file(form_field, upload_dir):
     form = cgi.FieldStorage()
@@ -53,9 +53,6 @@ def handle_post_request():
         # target이 생성할 수 있는 파일명이 아닌 경우 저장하지 않음(ex. 폴더명)
         if '/' in target or '\\' in target:
             return "Status: 400 Bad Request"
-        # 저장할 파일이 이미 존재하는 경우 저장하지 않음
-        if os.path.exists(os.path.join(UPLOAD_DIR, target)):
-            return "Status: 409 Conflict"
         file_path = os.path.join(UPLOAD_DIR, target)
         with open(file_path, 'w') as file:
             file.write(data)
@@ -88,7 +85,6 @@ def handle_post_request():
 
     return response
 
-if __name__ == '__main__':
-    response = handle_post_request()
-    print("Content-Type: text/plain")
-    print(response)
+response = handle_post_request()
+print("Content-Type: text/plain")
+print(response)
