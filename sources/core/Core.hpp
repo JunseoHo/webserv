@@ -3,6 +3,7 @@
 
 # include <list>
 # include <string>
+#include <ctime>
 # include <vector>
 # include <map>
 # include <unistd.h>
@@ -24,12 +25,12 @@
 # include "../utils/utils.h"
 # include <signal.h>
 # define BUFFER_SIZE 1024
-# define TIME_LIMIT 0.1
+# define TIME_LIMIT 3
 
 struct cgiPidsInfo {
     int clientFd;
     pid_t pid;
-    double startTime;
+    std::time_t startTime;
 	std::string uri;
 	HttpRequest request;
 	Location location;

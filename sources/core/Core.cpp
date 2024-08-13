@@ -28,10 +28,8 @@ void Core::Start() {
 void Core::eventLoop() {
     while (true) {
         try {
-            // std::cout << "Polling..." << std::endl;
             handleTimeoutCGI();
             int pollResult = poll(_pollFds.data(), _pollFds.size(), 1000);
-            std::cout << "Size of pollFds:" << _pollFds.size() << std::endl;
             
             if (pollResult == -1)
                 throw std::runtime_error("poll failed");
@@ -71,24 +69,13 @@ void Core::eventLoop() {
                         else
                             _pollFds[i].events = POLLIN;
                     }
-                    std::cout << "IF OK" << std::endl;
                 }
                 else
                 {
-                    std::ostringstream logStream;
-                    logStream << "Unexpected event on fd " << _pollFds[i].fd << ": ";
-                    if (_pollFds[i].revents & POLLERR) {
-                        logStream << "POLLERR ";
-                    }
-                    if (_pollFds[i].revents & POLLHUP) {
-                        logStream << "POLLHUP ";
-                    }
                     if (_pollFds[i].revents & POLLNVAL) {
-                        logStream << "POLLNVAL ";
                         _pollFds.erase(_pollFds.begin() + i);
                         i--;
                     }
-                    std::cout << logStream.str() << std::endl;
                 }
             }
         } catch (std::exception &e) {
@@ -314,7 +301,7 @@ void Core::executeCGI(std::string uri, HttpRequest &request, int clientSocketFd,
     cgiPidsInfo cgiPidInfo;
     cgiPidInfo.clientFd = clientSocketFd;
     cgiPidInfo.pid = pid;
-    cgiPidInfo.startTime = static_cast<double>(std::clock()) / CLOCKS_PER_SEC;
+    cgiPidInfo.startTime = std::time(nullptr);
 	cgiPidInfo.request = request;
 	cgiPidInfo.uri = uri;
 	cgiPidInfo.location = location;
@@ -532,10 +519,10 @@ void Core::deleteMethod(std::string& uri, HttpRequest& httpRequest, int& statusC
 
 void Core::handleTimeoutCGI() {
     int status;
-    double currentTime = static_cast<double>(std::clock()) / CLOCKS_PER_SEC;
+    time_t currentTime = std::time(nullptr);
     for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end();)
     {
-        double result = currentTime - it->startTime;
+        time_t result = currentTime - it->startTime;
         std::cerr << "duration: " << result << '\n';
         if (result > TIME_LIMIT)
         {
