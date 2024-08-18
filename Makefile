@@ -11,6 +11,8 @@ SRC = sources/core/main.cpp\
 	sources/http/HttpResponse.cpp\
 	sources/utils/utils.cpp\
 
+OBJ=$(SRC:.cpp=.o)
+
 INC = sources/core/
 
 all: $(TARGET)
@@ -19,6 +21,10 @@ $(TARGET): $(SRC)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRC) -I$(INC)
 
 clean:
+	rm -rf $(OBJ)
+
+fclean:
+	$(MAKE) clean
 	rm -rf $(TARGET)
 
 re: 
