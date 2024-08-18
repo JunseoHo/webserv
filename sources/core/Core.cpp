@@ -87,9 +87,6 @@ void Core::handleOutEvent(int clientSocketFd) {
     if (_responseBufferManager.isBufferEmpty(clientSocketFd))
         return ;
     std::string response = _responseBufferManager.GetSubBuffer(clientSocketFd, BUFFER_SIZE);
-    std::cout << "========== Response Chunk =========" << std::endl;
-    std::cout << response << '\n';
-    std::cout << "===================================" << std::endl;
     ssize_t size = write(clientSocketFd, response.c_str(), response.size());;
     if (size < 0)
     {
