@@ -88,9 +88,6 @@ void Core::handleOutEvent(int clientSocketFd) {
     if (_responseBufferManager.isBufferEmpty(clientSocketFd))
         return ;
     std::string response = _responseBufferManager.GetSubBuffer(clientSocketFd, BUFFER_SIZE);
-    std::cout << "========== Response =========" << std::endl;
-    std::cout << response << '\n';
-    std::cout << "=============================" << std::endl;
     ssize_t size = write(clientSocketFd, response.c_str(), response.size());;
     if (size < 0)
     {
@@ -523,7 +520,6 @@ void Core::handleTimeoutCGI() {
     for (std::vector<cgiPidsInfo>::iterator it = _cgiPidsInfo.begin(); it != _cgiPidsInfo.end();)
     {
         time_t result = currentTime - it->startTime;
-        std::cerr << "duration: " << result << '\n';
         if (result > TIME_LIMIT)
         {
             kill(it->pid, SIGKILL);
